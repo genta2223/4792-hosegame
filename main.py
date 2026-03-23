@@ -963,7 +963,7 @@ class App:
         elif self.sub_menu == "feed":
             return "給餌", FEED_ITEMS + ["もどる"], self.sub_cursor
 
-        elif self.state == STATE_REST_MENU:
+        elif self.state == STATE_REST_SELECT:
             items = ["ほうぼく", "サウナ", "もどる"]
             return "休養", items, self.sub_cursor
 
@@ -1337,7 +1337,7 @@ class App:
             self._draw_tutorial()
         elif self.state == STATE_TUTORIAL_RACE:
             self._draw_tutorial_race()
-        elif self.state == STATE_PLAY or self.state == STATE_REST_MENU:
+        elif self.state == STATE_PLAY or self.state == STATE_REST_SELECT:
             self._draw_play()
         elif self.state == STATE_RACE:
             self._draw_race()

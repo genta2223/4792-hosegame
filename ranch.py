@@ -81,7 +81,18 @@ class Ranch:
         from horse import Horse
         foal = Horse.breed(stallion, mare, name=foal_name)
         self.horses.append(foal)
-        return True, f"{foal.name} が誕生したさぁ！父:{stallion.name} 母:{mare.name}"
+        
+        # おじぃのアドバイス生成
+        msg = f"{foal.name} が誕生したさぁ！父:{stallion.name} 母:{mare.name}\n"
+        if foal.nick_type == "疾風剛健":
+            msg += "おぉ！伝説の『疾風 × 剛健』ニックスさぁ！凄まじい爆発力を感じるよ。"
+        elif foal.nick_type == "悠久賢者":
+            msg += "『悠久 × 賢者』のニックスだねぇ。非常に安定して成長する良い組み合わせさぁ。"
+            
+        if getattr(foal, "last_breeding_explosion", False):
+            msg += "\n…こ、これは！？ 想像を遥かに超える『爆発』が起きたさぁ！ とんでもない名馬になる予感がするよ！"
+            
+        return True, msg
 
     # ---------- 時の部屋 (Eternal Paddock) ----------
     def add_to_paddock(self, horse_index):

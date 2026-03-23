@@ -350,9 +350,9 @@ def draw_main_screen(frame, game, left_title, left_items, cursor_idx, wide_menu=
             jp_text(aw_x, sy, aw_text, COL_GRAY)
             sy += 12
             
-            # 血統の表示
-            jp_text(info_x + 6, sy, f"父:{horse.sire}", COL_DKGRAY)
-            jp_text(info_x + 76, sy, f"母:{horse.dam}", COL_DKGRAY)
+            # 血統の表示 (2代血統 + タイプ)
+            ped_text = f"父({horse.sire_type}) × 母({horse.dam_type})"
+            jp_text(info_x + 6, sy, ped_text, COL_DKGRAY)
             sy += 12
 
             # 調子とおじぃの助言

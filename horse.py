@@ -26,9 +26,15 @@ class Horse:
         self.gender = random.choice(["牡馬", "牝馬"])
         self.prize_money = 0
         
+        # 血統タイプ (Type) & 安定感 (Consistency)
+        self.bloodline_type = random.choice(["疾風", "剛健", "悠久", "賢者"])
+        self.consistency = random.choice(["A", "B", "C"]) # A: 80%, B: 65%, C: 50%
+        
         # 血統 (Sire/Dam)
         self.sire = "不明"
         self.dam = "不明"
+        self.sire_type = "不明"
+        self.dam_type = "不明"
 
         # 基礎能力 (0-255)
         if randomise:
@@ -126,42 +132,71 @@ class Horse:
 
     @classmethod
     def breed(cls, stallion, broodmare, name=None):
-        """Create a new foal from a stallion and broodmare (50% rule)."""
+        """Create a new foal from a stallion and broodmare with Type/Consistency logic."""
         foal = cls(name=name, randomise=False)
-        foal.sire = stallion.name
-        foal.dam = broodmare.name
-
-        # 50% Inheritance Rule:
-        # Parents contribute 50% of the average. 
-        # The remaining 50% is a mix of gender bonus and randomness.
-        # This keeps the bloodline strong but prevents immediate capping without refinement.
-        for s in ["speed", "stamina", "guts", "wisdom", "luck"]:
+        
+        # 1. 安定感に基づく継承率の決定
+        c_map = {"A": 0.8, "B": 0.65, "C": 0.5}
+        s_rate = c_map.get(stallion.consistency, 0.65)
+        m_rate = c_map.get(broodmare.consistency, 0.65)
+        avg_rate = (s_rate + m_rate) / 2.0
+        
+        # 2. ニックス (相性) 判定
+        nicks_bonus = 0
+        nick_type = ""
+        types = {stallion.bloodline_type, broodmare.bloodline_type}
+        if "疾風" in types and "剛健" in types:
+            nicks_bonus = 15
+            nick_type = "疾風剛健"
+        elif "悠久" in types and "賢者" in types:
+            nicks_bonus = 10
+            nick_type = "悠久賢者"
+            avg_rate = min(0.9, avg_rate + 0.05) # 安定感アップ
+        
+        # 3. ステータス継承
+        stats = ["speed", "stamina", "guts", "wisdom", "luck", "temper"]
+        is_explosion = False
+        explosion_chance = 0.05 + (0.8 - avg_rate) * 0.2
+        if random.random() < explosion_chance:
+            is_explosion = True
+            
+        for s in stats:
             s_val = getattr(stallion, s)
             m_val = getattr(broodmare, s)
-            parent_avg = (s_val + m_val) // 2
-            
-            # 50% based on parents, 50% on new potential (random + bonus)
-            inherited_part = parent_avg * 0.5
-            random_part = random.randint(20, 100) * 0.5 
-            
-            # Gender bonus: Stallion helps speed/guts, Mare helps stamina/wisdom
-            bonus = 0
-            if s == "speed" and stallion.speed > 180: bonus += 5
-            if s == "stamina" and broodmare.stamina > 180: bonus += 5
-            
-            setattr(foal, s, clamp(inherited_part + random_part + bonus))
-        
-        # Temper and Weight
-        foal.temper = clamp((stallion.temper + broodmare.temper) // 2 + random.randint(-15, 20))
-        foal.weight = (stallion.best_weight + broodmare.best_weight) // 2 + random.randint(-8, 8)
-        foal.best_weight = foal.weight
+            inherited = (s_val + m_val) / 2.0 * avg_rate
+            bonus = random.randint(15, 35)
+            if foal.gender == "牡馬" and s in ["speed", "guts"]: bonus += 10
+            if foal.gender == "牝馬" and s in ["stamina", "wisdom"]: bonus += 10
+            if nick_type == "疾風剛健" and s in ["speed", "guts"]: bonus += nicks_bonus
+            if nick_type == "悠久賢者" and s in ["stamina", "wisdom"]: bonus += nicks_bonus
+            if is_explosion: bonus += random.randint(30, 60)
+            setattr(foal, s, clamp(inherited + bonus))
 
-        # Potential Caps (Inherited from parents with bonus)
-        foal.caps = {}
+        # 4. 潜在能力 (Potential Caps)
         for s in ["speed", "stamina", "guts", "wisdom"]:
-            p_avg_cap = (stallion.caps[s] + broodmare.caps[s]) // 2
-            # Caps inherit well, but need breeding to push further
-            foal.caps[s] = clamp(p_avg_cap + random.randint(-5, 12), 170, 255)
+            s_cap = stallion.caps.get(s, 200)
+            m_cap = broodmare.caps.get(s, 200)
+            base_cap = (s_cap + m_cap) / 2.0
+            cap_inherited = base_cap * avg_rate
+            cap_bonus = random.randint(50, 80)
+            if is_explosion: cap_bonus += 40
+            foal.caps[s] = clamp(cap_inherited + cap_bonus, 180, 255)
+
+        # 5. 血統タイプと安定感の継承
+        foal.bloodline_type = random.choice([stallion.bloodline_type, broodmare.bloodline_type])
+        consistencies = ["C", "B", "A"]
+        p_idx = (consistencies.index(stallion.consistency) + consistencies.index(broodmare.consistency)) // 2
+        roll = random.random()
+        if roll < 0.1: p_idx = max(0, p_idx - 1)
+        elif roll > 0.9: p_idx = min(2, p_idx + 1)
+        foal.consistency = consistencies[p_idx]
+
+        foal.dam = broodmare.name
+        foal.sire_type = stallion.bloodline_type
+        foal.dam_type = broodmare.bloodline_type
+        
+        foal.last_breeding_explosion = is_explosion
+        foal.nick_type = nick_type
 
         # 外見の遺伝
         p = stallion if random.random() < 0.5 else broodmare
@@ -169,7 +204,14 @@ class Horse:
         if random.random() < 0.2:
             foal.appearance["face_marking"] = random.randint(0, 3)
 
+        # 体重設定
+        foal.weight = (stallion.best_weight + broodmare.best_weight) // 2 + random.randint(-8, 8)
+        foal.best_weight = foal.weight
         return foal
+
+    def get_bloodline_info(self):
+        """Returns name and bloodline type string."""
+        return f"{self.name}({self.bloodline_type})"
 
     # ---------- パラメータ上限（加齢キャップ） ----------
     def _param_cap(self):
@@ -204,74 +246,54 @@ class Horse:
 
     # ---------- アクション ----------
     def train(self, location="sonai", intensity="normal"):
-        """場所別開墾トレーニング。
-        location: 'higawa', 'kubura', 'sonai'
-        intensity: 'normal' (軽め), 'deep' (強め)
-        """
+        """場所別開墾トレーニング。"""
         if self.retired: return "引退した馬は調教できません。"
-        
         self.cap_warning_triggered = False
         success = True
         if intensity == "normal":
-            # 67% で成功 (+1以上)、33% で失敗 (+0)
             if random.random() > 0.67: success = False
         
-        # 疲労計算
         fat_gain = 5 if intensity == "normal" else 10
         if location == "kubura": fat_gain += 3
         elif location == "higawa": fat_gain -= 2
         self.fatigue = clamp(self.fatigue + fat_gain, 0, 100)
 
-        # 調子による倍率 (0.8x - 1.2x)
         cond_mult = 0.8 + (self.condition / 100.0) * 0.4
-        
-        # ステータス上昇値の決定
         gains = {"speed": 0, "stamina": 0, "guts": 0, "wisdom": 0}
         
         if success:
-            if location == "kubura": # 久部良: スタミナ・根性
+            if location == "kubura": 
                 gains["stamina"] += random.randint(1, 2)
                 gains["guts"] += random.randint(1, 2)
-            elif location == "sonai": # 祖納: スピード・賢さ
+            elif location == "sonai": 
                 gains["speed"] += random.randint(1, 2)
                 gains["wisdom"] += random.randint(1, 2)
-            else: # 比川: 全ステータスが「まんべんなく」伸びる
-                # ヒガワ限定: 軽め(Light)ならステータス成否に関わらず「調子」が確実に +5〜10 上昇
+            else: 
                 if intensity == "normal":
                     self.condition = clamp(self.condition + random.randint(5, 10), 0, 100)
-
-                # 各ステータス個別に判定 (強めなら100%、軽めなら67%で+1)
                 for s in ["speed", "stamina", "guts", "wisdom"]:
                     if intensity == "deep" or random.random() < 0.67:
                         gains[s] += 1
-                self.temper = clamp(self.temper - 2) # 比川は気性改善
+                self.temper = clamp(self.temper - 2) 
 
-        # 調子への影響 (比川・軽め以外)
         if location != "higawa" or intensity != "normal":
             if intensity == "normal": self.condition = clamp(self.condition + 2, 0, 100)
             else: self.condition = clamp(self.condition - 3, 0, 100)
 
-        # 潜在能力（Cap）による減衰適用
         final_gains = []
         for s, val in gains.items():
             if val <= 0: continue
-            
             current = getattr(self, s)
             cap = self.caps.get(s, 220)
-            
-            if current >= cap + 20:
-                val = 0 # ほぼストップ
+            if current >= cap + 20: val = 0 
             elif current >= cap:
-                # 限界を超えると伸びが 50% にカット
                 if random.random() < 0.5: val = max(0, val - 1)
-                if val > 0: self.cap_warning_triggered = True # 限界示唆
+                if val > 0: self.cap_warning_triggered = True 
 
             if val > 0:
-                # 調子倍率適用 (確率的に +1 -> +1 or +0, +2 -> +2 or +1 or +3 等)
                 actual_val = 0
                 for _ in range(val):
                     if random.random() < cond_mult: actual_val += 1
-                
                 if actual_val > 0:
                     setattr(self, s, clamp(current + actual_val))
                     final_gains.append(f"{s.upper()}+{actual_val}")
@@ -279,11 +301,9 @@ class Horse:
         self.contribution += 1
         loc_name = {"higawa": "比川", "kubura": "久部良", "sonai": "祖納"}.get(location, "祖納")
         intensity_name = "軽め" if intensity == "normal" else "強め"
-        
         gain_str = ", ".join(final_gains) if final_gains else "変化なし"
         res = f"{loc_name}で{intensity_name}に開墾した ({gain_str})"
         
-        # 故障判定
         if self.fatigue > 80:
             injury_chance = (self.fatigue - 80) ** 2 / 400.0
             if random.random() < injury_chance:
@@ -292,53 +312,41 @@ class Horse:
                 self.stamina = clamp(self.stamina - penalty)
                 self.fatigue = 100
                 return f"{loc_name}で故障発生！ 能力-{penalty}"
-                
         return res
 
     def feed(self, feed_type="bagasse"):
-        """給餌。feed_type: 'bagasse'(バガス) or 'choumeisou'(長命草)"""
-        if self.retired:
-            return "引退した馬には給餌できません。"
-        
+        if self.retired: return "引退した馬には給餌できません。"
         if feed_type == "choumeisou":
-            # 長命草: 高価、疲労大回復、調子アップ
             self.weight = min(300, self.weight + 2)
             self.fatigue = clamp(self.fatigue - 25, 0, 100)
             self.condition = clamp(self.condition + 8, 0, 100)
             return "長命草を与えた 疲労が取れ、調子も上がった"
         else:
-            # バガス: 基本餌、体重維持、調子微増
             self.weight = min(300, self.weight + 3)
             self.fatigue = clamp(self.fatigue - 10, 0, 100)
             self.condition = clamp(self.condition + 3, 0, 100)
             return "バガスを与えた"
 
     def rest(self):
-        """基本の休養: Fatigue-30, Weight+1, Condition+5"""
-        if self.retired:
-            return "引退した馬は休養できません。"
+        if self.retired: return "引退した馬は休養できません。"
         self.fatigue = clamp(self.fatigue - 30, 0, 100)
         self.weight = min(300, self.weight + 1)
         self.condition = clamp(self.condition + 5, 0, 100)
         return "ゆっくりと休養させた"
 
     def pasture(self):
-        """放牧: Fatigue-20, Condition+10 (調子上昇)"""
         if self.retired: return "引退した馬は放牧できません。"
         self.fatigue = clamp(self.fatigue - 20, 0, 100)
         self.condition = clamp(self.condition + 10, 0, 100)
         return "放牧でリフレッシュさせた 調子が上向いたさぁ"
 
     def sauna(self):
-        """サウナ: Fatigue-50, Weight-2 (疲労大回復、体重減)"""
         if self.retired: return "引退した馬はサウナに入れません。"
         self.fatigue = clamp(self.fatigue - 50, 0, 100)
         self.weight = clamp(self.weight - 2, 150, 300)
         return "サウナで汗を流した 疲れがすっきり取れたさぁ"
 
-    # ---------- 調子テキスト（ダビスタ風） ----------
     def condition_text(self):
-        """Return condition wave text."""
         if self.condition >= 85: return "絶好調さぁ！"
         elif self.condition >= 65: return "調子は上向きよ"
         elif self.condition >= 35: return "普通だねぇ"
@@ -346,7 +354,6 @@ class Horse:
         else: return "絶不調さぁ..."
 
     def fatigue_text(self):
-        """Return DS3-style fatigue text."""
         if self.fatigue >= 80: return "かなり疲れています"
         elif self.fatigue >= 60: return "疲れているようです"
         elif self.fatigue >= 40: return "少し疲れています"
@@ -354,44 +361,25 @@ class Horse:
         else: return "元気いっぱいです"
 
     def weight_text(self):
-        """Return DS3-style weight condition text."""
         diff = self.weight - self.best_weight
-        if abs(diff) <= 2:
-            return "ベスト体重です"
-        elif diff > 8:
-            return "かなり太めです"
-        elif diff > 4:
-            return "少し太めですね"
-        elif diff < -8:
-            return "かなり細いです"
-        elif diff < -4:
-            return "少し細いですね"
+        if abs(diff) <= 2: return "ベスト体重です"
+        elif diff > 8: return "かなり太めです"
+        elif diff > 4: return "少し太めですね"
+        elif diff < -8: return "かなり細いです"
+        elif diff < -4: return "少し細いですね"
         return "ほぼベスト体重"
 
-    # ---------- 体重ボーナス/ペナルティ ----------
     def weight_modifier(self):
-        """ベスト体重±4kg以内なら1.0、外れるほど減衰"""
         diff = abs(self.weight - self.best_weight)
-        if diff <= 4:
-            return 1.0
+        if diff <= 4: return 1.0
         return max(0.7, 1.0 - (diff - 4) * 0.02)
 
-    # ---------- レース用総合力 ----------
     def race_power(self):
-        """Calculate overall race power with weight modifier."""
-        base = (
-            self.speed * 0.35
-            + self.stamina * 0.25
-            + self.guts * 0.15
-            + self.wisdom * 0.10
-            + self.luck * 0.05
-        )
+        base = (self.speed * 0.35 + self.stamina * 0.25 + self.guts * 0.15 + self.wisdom * 0.10 + self.luck * 0.05)
         temper_mod = 1.0 - (max(0, self.temper - 70)) * 0.003
         return base * self.weight_modifier() * temper_mod + random.gauss(0, 3)
 
-    # ---------- ハッシュ ----------
     def generate_hash(self):
-        """Serialize horse data to a shareable hash string."""
         data = {
             "n": self.name, "a": self.age, "g": self.gender, "pm": self.prize_money,
             "sr": self.sire, "dm": self.dam,
@@ -408,7 +396,6 @@ class Horse:
 
     @classmethod
     def from_hash(cls, hash_str):
-        """Deserialize a horse from a hash string."""
         _, raw = hash_str.split("|", 1)
         d = json.loads(raw)
         h = cls(name=d["n"], randomise=False)
@@ -427,10 +414,6 @@ class Horse:
         h.target_weeks_left = d.get("tw", 0)
         return h
 
-    # ---------- 表示 ----------
     def __repr__(self):
-        return (
-            f"Horse({self.name} {self.gender} age={self.age} cls={self.get_class_name()} "
-            f"SPD={self.speed} STA={self.stamina} GUT={self.guts} "
-            f"WT={self.weight} FAT={self.fatigue} CON={self.contribution})"
-        )
+        return (f"Horse({self.name} {self.gender} age={self.age} cls={self.get_class_name()} "
+                f"SPD={self.speed} STA={self.stamina} GUT={self.guts} WT={self.weight} FAT={self.fatigue})")

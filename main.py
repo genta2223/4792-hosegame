@@ -743,6 +743,7 @@ class App:
         is_running = self.race_engine.update()
         if not is_running:
             self.state = STATE_RACE_RESULT
+            self.frame = 1
 
     def _update_race_result(self):
         if self.frame == 1:
@@ -931,6 +932,7 @@ class App:
         is_running = self.race_engine.update()
         if not is_running:
             self.state = STATE_VS_RESULT
+            self.frame = 1
 
     def _update_vs_result(self):
         if self.frame == 1:

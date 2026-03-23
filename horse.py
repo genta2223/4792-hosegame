@@ -191,6 +191,7 @@ class Horse:
         elif roll > 0.9: p_idx = min(2, p_idx + 1)
         foal.consistency = consistencies[p_idx]
 
+        foal.sire = stallion.name
         foal.dam = broodmare.name
         foal.sire_type = stallion.bloodline_type
         foal.dam_type = broodmare.bloodline_type

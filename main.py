@@ -1004,10 +1004,21 @@ class App:
             items = []
             for r in races:
                 prefix = "" if r['offset'] == 0 else f"(あと{r['offset']}週) "
-                if h and h.prize_money >= r["req_prize"]:
-                    items.append(f"{prefix}{r['name']}({r['prize']}G)")
-                else:
-                    items.append(f"[格上]{prefix}{r['name']}")
+                
+                # クラスラベルの決定
+                r_cls = "未勝利"
+                if r["req_prize"] >= 5000: r_cls = "G1"
+                elif r["req_prize"] >= 1000: r_cls = "重賞"
+                elif r["req_prize"] > 0: r_cls = "一般"
+                
+                # 出走可能判定
+                can_enter = h and h.prize_money >= r["req_prize"]
+                color_tag = "#B#" if can_enter else "#R#"
+                
+                # ラベル生成
+                label = f"[{r_cls}]{prefix}{r['name']}({r['prize']}G)"
+                items.append(f"{color_tag}{label}")
+                
             items.append("戻る")
             return "番組表", items, self.sub_cursor
 

@@ -77,7 +77,9 @@ def draw_menu_list(x, y, items, cursor, w=None, max_visible=None):
         return
 
     if w is None:
-        w = max(text_width(item) for item in items) + 24
+        # Strip color tags for width calculation
+        stripped_items = [i[3:] if i.startswith(("#R#", "#B#")) else i for i in items]
+        w = max(text_width(item) for item in stripped_items) + 24
         
     # Scrolling logic
     n = len(items)
@@ -95,11 +97,22 @@ def draw_menu_list(x, y, items, cursor, w=None, max_visible=None):
     for i in range(start_idx, end_idx):
         item = items[i]
         iy = y + (i - start_idx) * 14
+        
+        # Color tag support
+        d_col = COL_GRAY
+        display_text = item
+        if item.startswith("#R#"):
+            d_col = COL_RED
+            display_text = item[3:]
+        elif item.startswith("#B#"):
+            d_col = COL_SEA
+            display_text = item[3:]
+            
         if i == cursor:
             jp_text(x + 4, iy, "▶", COL_SUN)
-            jp_text(x + 16, iy, item, COL_WHITE)
+            jp_text(x + 16, iy, display_text, COL_WHITE)
         else:
-            jp_text(x + 16, iy, item, COL_GRAY)
+            jp_text(x + 16, iy, display_text, d_col)
             
     # Scroll indicators
     if start_idx > 0:

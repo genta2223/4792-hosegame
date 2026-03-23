@@ -349,6 +349,11 @@ def draw_main_screen(frame, game, left_title, left_items, cursor_idx, wide_menu=
             aw_x = info_x + info_w - text_width(aw_text) - 4
             jp_text(aw_x, sy, aw_text, COL_GRAY)
             sy += 12
+            
+            # 血統の表示
+            jp_text(info_x + 6, sy, f"父:{horse.sire}", COL_DKGRAY)
+            jp_text(info_x + 76, sy, f"母:{horse.dam}", COL_DKGRAY)
+            sy += 12
 
             # 調子とおじぃの助言
             jp_text(info_x + 6, sy, f"体調: {horse.fatigue_text()}", _cond_color(horse.fatigue))

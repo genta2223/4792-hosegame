@@ -26,9 +26,10 @@ def init_audio():
     # Race Hoofbeats
     pyxel.sounds[SE_HOOF].set("c2r c2c2 r c2", "n", "5", "f", 6)
     # Win Fanfare — 琉球音階の栄光のファンファーレ (C/E/F/G/B only)
+    # 777666... を 777777... にして音量を維持
     pyxel.sounds[SE_WIN].set(
         "c3 e3 f3 g3 b3 c4 r c4 b3 c4 e4 c4 g3 b3 c4 c4",
-        "p", "7776665544", "n", 8
+        "p", "7777777777", "n", 8
     )
     # Lose — 寂しげだが希望を感じる短いフレーズ (C/E/F/G/B only)
     pyxel.sounds[SE_LOSE].set(
@@ -130,6 +131,11 @@ def play_se(idx):
 
 def play_bgm(idx):
     pyxel.playm(idx, loop=True)
+
+def play_fanfare(idx):
+    """Play a sound effect on channel 0 (highest priority, bypasses BGM stopping)."""
+    if 0 <= idx <= 6:
+        pyxel.play(0, idx, loop=False)
 
 def stop_bgm():
     pyxel.stop()

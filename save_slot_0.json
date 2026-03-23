@@ -1,31 +1,31 @@
 {
     "y": 1,
-    "m": 2,
-    "w": 2,
-    "bal": 5300,
+    "m": 4,
+    "w": 4,
+    "bal": 15000,
     "hs": [
         {
-            "na": "サナエ",
+            "na": "ハーリー",
             "ag": 2,
-            "ge": "牝馬",
-            "sp": 84,
-            "st": 46,
-            "gu": 48,
-            "lu": 65,
-            "te": 67,
-            "wt": 203,
-            "bw": 199,
-            "fa": 81,
-            "co": 8,
+            "ge": "牡馬",
+            "sp": 92,
+            "st": 92,
+            "gu": 61,
+            "lu": 36,
+            "te": 26,
+            "wt": 196,
+            "bw": 192,
+            "fa": 0,
+            "co": 22,
             "rt": false,
             "ip": false,
             "ap": {
-                "base_color": 1,
-                "face_marking": 2,
-                "mane_tail_color": 0,
-                "leg_marking": 0
+                "base_color": 9,
+                "face_marking": 0,
+                "mane_tail_color": 7,
+                "leg_marking": 2
             },
-            "pm": 300,
+            "pm": 10300,
             "tr": null,
             "tw": -1
         }
@@ -33,5 +33,5 @@
     "pd": [],
     "st": [],
     "br": [],
-    "rc": ""
+    "rc": "YONA-2026-WJVX"
 }

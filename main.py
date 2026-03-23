@@ -17,7 +17,7 @@ from ui import (
     draw_calendar_proceed_screen, draw_vs_ready_screen
 )
 from audio import (
-    init_audio, play_se, play_bgm, stop_bgm,
+    init_audio, play_se, play_fanfare, play_bgm, stop_bgm,
     SE_CURSOR, SE_CONFIRM, SE_CANCEL, SE_TRAIN, SE_WIN, SE_LOSE,
     BGM_RANCH, BGM_RACE, BGM_TITLE
 )
@@ -129,6 +129,7 @@ class App:
         self._title_bgm_started = False
         self.game = GameState()
         self.frame = 0
+        self.fanfare_played = False
 
         # プロローグ
         self.dialogue_index = 0
@@ -556,23 +557,6 @@ class App:
         self.sub_menu = "train_loc"
         self.sub_cursor = 0
 
-    def _update_rest_select(self):
-        """Update logic for the expanded Rest menu (pasture/sauna)."""
-        items = ["ほうぼく", "サウナ", "もどる"]
-        if pyxel.btnp(pyxel.KEY_UP):
-            self.sub_cursor = (self.sub_cursor - 1) % len(items)
-            play_se(SE_CURSOR)
-        if pyxel.btnp(pyxel.KEY_DOWN):
-            self.sub_cursor = (self.sub_cursor + 1) % len(items)
-            play_se(SE_CURSOR)
-            
-        if pyxel.btnp(pyxel.KEY_RETURN):
-            sel = items[self.sub_cursor]
-            self._handle_rest_select(sel)
-            
-        if pyxel.btnp(pyxel.KEY_BACKSPACE):
-            play_se(SE_CANCEL)
-            self.state = STATE_PLAY
 
     def _trigger_calendar_proceed(self, next_state):
         self.cal_old_year = self.game.calendar.year
@@ -742,18 +726,18 @@ class App:
     def _update_race(self):
         is_running = self.race_engine.update()
         if not is_running:
-            self.state = STATE_RACE_RESULT
-            self.frame = 1
-
-    def _update_race_result(self):
-        if self.frame == 1:
             stop_bgm()
             order = self.race_engine.player_horse.finish_order
             if order == 1: 
-                play_se(SE_WIN)
+                play_fanfare(SE_WIN)
             else: 
-                play_se(SE_LOSE)
+                play_fanfare(SE_LOSE)
             
+            self.state = STATE_RACE_RESULT
+            self.frame = 0
+            self.fanfare_played = True
+
+    def _update_race_result(self):
         if pyxel.btnp(pyxel.KEY_RETURN):
             play_se(SE_CONFIRM)
             rank = self.race_engine.get_player_rank()
@@ -769,10 +753,12 @@ class App:
             # クラス昇級用カウント
             if rank == 1:
                 h.wins += 1
-                # 重賞判定 (G1, G2, G3, 重賞, 記念, カップ などのキーワード)
-                is_stakes = any(kw in self.current_race_name for kw in ["G1", "G2", "G3", "重賞", "記念", "カップ"])
-                if is_stakes:
+                # 重賞判定
+                if any(kw in self.current_race_name for kw in ["G1", "G2", "G3", "重賞", "記念", "カップ"]):
                     h.stakes_wins += 1
+                # G1判定 (種牡馬制限用)
+                if "G1" in self.current_race_name:
+                    h.g1_wins += 1
                 
             if prize > 0:
                 h.prize_money += prize
@@ -931,17 +917,19 @@ class App:
     def _update_vs_race(self):
         is_running = self.race_engine.update()
         if not is_running:
-            self.state = STATE_VS_RESULT
-            self.frame = 1
-
-    def _update_vs_result(self):
-        if self.frame == 1:
             stop_bgm()
             # 1Pの着順をチェック
             order = next((h.finish_order for h in self.race_engine.results if h.player_index == 1), 99)
-            if order == 1: play_se(SE_WIN)
-            else: play_se(SE_LOSE)
+            if order == 1: 
+                play_fanfare(SE_WIN)
+            else: 
+                play_fanfare(SE_LOSE)
 
+            self.state = STATE_VS_RESULT
+            self.frame = 0
+            self.fanfare_played = True
+
+    def _update_vs_result(self):
         if pyxel.btnp(pyxel.KEY_RETURN):
             play_se(SE_CONFIRM)
             self.vs_horses = []
@@ -950,6 +938,10 @@ class App:
 
     def _get_current_menu(self):
         h = self.game.selected_horse
+        if self.state == STATE_REST_SELECT:
+            items = ["ほうぼく", "サウナ", "もどる"]
+            return "休養", items, self.sub_cursor
+
         if self.sub_menu is None:
             items = ["開墾", "給餌", "休養", "レース", "牧場", "対戦パス発行", "記録する"]
             if h and h.age >= 5:
@@ -965,9 +957,6 @@ class App:
         elif self.sub_menu == "feed":
             return "給餌", FEED_ITEMS + ["もどる"], self.sub_cursor
 
-        elif self.state == STATE_REST_SELECT:
-            items = ["ほうぼく", "サウナ", "もどる"]
-            return "休養", items, self.sub_cursor
 
         elif self.sub_menu == "ranch":
             items = []
@@ -976,6 +965,7 @@ class App:
             items.append("時の部屋")
             if self.game.calendar.month in [1, 2, 3]:
                 items.append("種付け")
+            items.append("おじぃに聞く")
             items.append("戻る")
             return "牧場", items, self.sub_cursor
             
@@ -1050,8 +1040,9 @@ class App:
         elif self.sub_menu == "ranch":
             sel = items[self.sub_cursor] if items else ""
             if sel == "馬 切替": return "【馬 切替】\n操作する馬を切り替えるさぁ"
-            if sel == "時の部屋": return "【時の部屋】\n馬をパドックへ送るさぁ。\n加齢が止まる便利な場所だぞ。\n（維持費: 毎月300G）"
+            if sel == "時の部屋": return "【時の部屋】\n馬を時の部屋へ送るさぁ。\n加齢が止まる便利な場所だぞ。\n（登録料: 1500G）"
             if sel == "種付け": return "【種付け】\n引退した馬を掛け合わせ、\n新しい子を誕生させるさぁ！"
+            if sel == "おじぃに聞く": return "【おじぃに聞く】\nおじぃから馬の状態や\n血統について助言をもらうさぁ"
             return "前のメニューに戻るさぁ"
 
         elif self.sub_menu == "paddock":
@@ -1245,6 +1236,8 @@ class App:
             elif sel == "種付け":
                 self.sub_menu = "breed_stallion"
                 self.sub_cursor = 0
+            elif sel == "おじぃに聞く":
+                self._show_ojii_advice()
                 
         elif self.sub_menu == "paddock":
             if sel == "預ける":
@@ -1344,6 +1337,41 @@ class App:
         self.frame = 1 # リセット
         stop_bgm()
         play_bgm(BGM_RACE)
+
+    def _show_ojii_advice(self):
+        """Sage Ojii provides context-aware advice about the horse and bloodline."""
+        h = self.game.selected_horse
+        if not h: return
+
+        advice = ""
+        # 1. 血統の傾向
+        if h.sire != "不明" or h.dam != "不明":
+            if h.speed > 180:
+                advice = f"おぉ、{h.name}のこの脚の速さ！まさに父：{h.sire}からの贈り物さぁ。素晴らしい血筋だねぇ。"
+            elif h.stamina > 180:
+                advice = f"この子の粘り強さは母：{h.dam}譲りだねぇ。長い距離でもバテない良い血筋さぁ。"
+            else:
+                advice = f"父：{h.sire}、母：{h.dam}。二人の良さをしっかり引き継いで、これからが楽しみさぁ。"
+        else:
+            advice = "この子はまだ独自の道を歩んでおる。ここから伝説を作っていこうさぁ。"
+
+        # 2. 成長限界とキャップ
+        for s, cap in h.caps.items():
+            val = getattr(h, s)
+            if val >= cap - 10:
+                advice += f"\n\n…おっと、{s}の成長が鈍くなっておるねぇ。「今の血筋」での限界が近いかもしれん。次は時の部屋で、もっと強い血と混ぜる時かもしれんさぁ。"
+                break
+        
+        # 3. 引退/時の部屋/モードの誘導
+        if h.age >= 6:
+            advice += "\n\nそろそろ この子もベテランさぁ。全盛期のうちに『時の部屋』へ登録して、次世代に夢を託すのも一つの手だぞ。"
+        elif h.get_class_name() == "G1級":
+            advice += "\n\nG1を勝つなんて大したもんさぁ！友人対戦パスを発行して、島一番の馬であることを証明しにいこうさぁ！"
+
+        self.ranch_msg_text = advice
+        self.ranch_msg_callback = None
+        self.state = STATE_RANCH_MESSAGE
+        self._reset_typewriter()
 
     def _prepare_race(self, race_obj):
         """Show Ojii advice before race start."""

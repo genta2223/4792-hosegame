@@ -24,7 +24,8 @@ def _serialize_horse(h: Horse) -> dict:
         "wt": h.weight, "bw": h.best_weight, "fa": h.fatigue,
         "co": h.contribution, "rt": h.retired, "ip": h.in_paddock,
         "ap": h.appearance,
-        "pm": h.prize_money, "tr": h.target_race, "tw": h.target_weeks_left
+        "pm": h.prize_money, "tr": h.target_race, "tw": h.target_weeks_left,
+        "sr": h.sire, "dm": h.dam, "g1w": h.g1_wins
     }
 
 def _deserialize_horse(d: dict) -> Horse:
@@ -38,6 +39,8 @@ def _deserialize_horse(d: dict) -> Horse:
     h.in_paddock = d["ip"]; h.prize_money = d["pm"]
     h.appearance = d.get("ap", {"base_color": 4, "face_marking": 0, "mane_tail_color": 0, "leg_marking": 0})
     h.target_race = d.get("tr"); h.target_weeks_left = d.get("tw", 0)
+    h.sire = d.get("sr", "不明"); h.dam = d.get("dm", "不明")
+    h.g1_wins = d.get("g1w", 0)
     return h
 
 def generate_password(ranch: Ranch, calendar: Calendar) -> str:

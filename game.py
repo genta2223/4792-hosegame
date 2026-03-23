@@ -128,6 +128,23 @@ class GameState:
             elif h.condition <= 0: h.condition_trend = 1
             elif random.random() < 0.1: # 10% で反転
                 h.condition_trend *= -1
+        
+        # 老化・死亡判定 (18歳以上)
+        dead_horses = []
+        for h in self.ranch.horses:
+            if h.age >= 18:
+                # 18歳から毎週 5% + (年齢-18)*2% の確率で死亡判定
+                death_chance = 0.05 + (h.age - 18) * 0.02
+                if random.random() < death_chance:
+                    dead_horses.append(h)
+                else:
+                    if random.random() < 0.3: # 時々警告
+                        self._add_log(f"⚠ {h.name}は高齢さぁ。時の部屋への登録を考えてもいいかもね。")
+        
+        for dh in dead_horses:
+            if dh in self.ranch.horses:
+                self.ranch.horses.remove(dh)
+                self._add_log(f"🕯 {dh.name}が天に召されました…（享年{dh.age}）")
 
         # 年越し処理
         if "__NEW_YEAR__" in events:

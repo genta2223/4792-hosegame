@@ -25,6 +25,10 @@ class Horse:
         self.age = 2  # 2歳スタート
         self.gender = random.choice(["牡馬", "牝馬"])
         self.prize_money = 0
+        
+        # 血統 (Sire/Dam)
+        self.sire = "不明"
+        self.dam = "不明"
 
         # 基礎能力 (0-255)
         if randomise:
@@ -92,6 +96,7 @@ class Horse:
         # 戦績・クラス用
         self.wins = 0
         self.stakes_wins = 0
+        self.g1_wins = 0
 
     # ---------- クラス・番組表用 ----------
     def get_class_info(self):
@@ -119,49 +124,50 @@ class Horse:
         name, _ = self.get_class_info()
         return name
 
-    # ---------- 繁殖 ----------
     @classmethod
     def breed(cls, stallion, broodmare, name=None):
-        """Create a new foal from a stallion and broodmare."""
+        """Create a new foal from a stallion and broodmare (50% rule)."""
         foal = cls(name=name, randomise=False)
-        # 両親の平均＋少しのブレ
-        foal.speed = clamp((stallion.speed + broodmare.speed) // 2 + random.randint(-15, 10))
-        foal.stamina = clamp((stallion.stamina + broodmare.stamina) // 2 + random.randint(-10, 15))
-        foal.guts = clamp((stallion.guts + broodmare.guts) // 2 + random.randint(-10, 10))
-        foal.wisdom = clamp((stallion.wisdom + broodmare.wisdom) // 2 + random.randint(-10, 10))
+        foal.sire = stallion.name
+        foal.dam = broodmare.name
+
+        # 50% Inheritance Rule:
+        # Parents contribute 50% of the average. 
+        # The remaining 50% is a mix of gender bonus and randomness.
+        # This keeps the bloodline strong but prevents immediate capping without refinement.
+        for s in ["speed", "stamina", "guts", "wisdom", "luck"]:
+            s_val = getattr(stallion, s)
+            m_val = getattr(broodmare, s)
+            parent_avg = (s_val + m_val) // 2
+            
+            # 50% based on parents, 50% on new potential (random + bonus)
+            inherited_part = parent_avg * 0.5
+            random_part = random.randint(20, 100) * 0.5 
+            
+            # Gender bonus: Stallion helps speed/guts, Mare helps stamina/wisdom
+            bonus = 0
+            if s == "speed" and stallion.speed > 180: bonus += 5
+            if s == "stamina" and broodmare.stamina > 180: bonus += 5
+            
+            setattr(foal, s, clamp(inherited_part + random_part + bonus))
         
-        # 運はランダム性高め
-        foal.luck = clamp((stallion.luck + broodmare.luck) // 2 + random.randint(-20, 20))
-        
-        # 気性は暴れる可能性あり（親が悪いと子も悪くなりやすい）
-        base_temper = (stallion.temper + broodmare.temper) // 2
-        foal.temper = clamp(base_temper + random.randint(-20, 30))
-        
-        foal.weight = (stallion.best_weight + broodmare.best_weight) // 2 + random.randint(-10, 10)
+        # Temper and Weight
+        foal.temper = clamp((stallion.temper + broodmare.temper) // 2 + random.randint(-15, 20))
+        foal.weight = (stallion.best_weight + broodmare.best_weight) // 2 + random.randint(-8, 8)
         foal.best_weight = foal.weight
 
-        # 潜在能力の継承
+        # Potential Caps (Inherited from parents with bonus)
         foal.caps = {}
         for s in ["speed", "stamina", "guts", "wisdom"]:
-            base_cap = (stallion.caps[s] + broodmare.caps[s]) // 2
-            foal.caps[s] = clamp(base_cap + random.randint(-15, 20), 160, 255)
+            p_avg_cap = (stallion.caps[s] + broodmare.caps[s]) // 2
+            # Caps inherit well, but need breeding to push further
+            foal.caps[s] = clamp(p_avg_cap + random.randint(-5, 12), 170, 255)
 
-        # 外見の遺伝（どちらかの親から引き継ぐか、稀に突然変異）
-        if random.random() < 0.1: # 突然変異
-            foal.appearance = {
-                "base_color": random.choice([4, 9, 5, 13, 1]),
-                "face_marking": random.randint(0, 3),
-                "mane_tail_color": random.choice([0, 4, 10, 7]),
-                "leg_marking": random.randint(0, 2)
-            }
-        else:
-            p = random.choice([stallion, broodmare])
-            foal.appearance = p.appearance.copy()
-            # 模様は少し混ざる可能性
-            if random.random() < 0.3:
-                foal.appearance["face_marking"] = random.choice([stallion.appearance["face_marking"], broodmare.appearance["face_marking"]])
-            if random.random() < 0.3:
-                foal.appearance["leg_marking"] = random.choice([stallion.appearance["leg_marking"], broodmare.appearance["leg_marking"]])
+        # 外見の遺伝
+        p = stallion if random.random() < 0.5 else broodmare
+        foal.appearance = p.appearance.copy()
+        if random.random() < 0.2:
+            foal.appearance["face_marking"] = random.randint(0, 3)
 
         return foal
 
@@ -388,6 +394,7 @@ class Horse:
         """Serialize horse data to a shareable hash string."""
         data = {
             "n": self.name, "a": self.age, "g": self.gender, "pm": self.prize_money,
+            "sr": self.sire, "dm": self.dam,
             "sp": self.speed, "st": self.stamina,
             "gu": self.guts, "wi": self.wisdom,
             "lu": self.luck, "te": self.temper,
@@ -408,6 +415,8 @@ class Horse:
         h.age = d["a"]
         h.gender = d.get("g", "牡馬")
         h.prize_money = d.get("pm", 0)
+        h.sire = d.get("sr", "不明")
+        h.dam = d.get("dm", "不明")
         h.speed = d["sp"]; h.stamina = d["st"]
         h.guts = d["gu"]; h.wisdom = d["wi"]
         h.luck = d["lu"]; h.temper = d["te"]

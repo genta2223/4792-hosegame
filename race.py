@@ -127,17 +127,28 @@ class RaceEngine:
                 cpu_idx += 1
         else:
             # ライバル馬生成 (PVE) — always 4 total
-            rival_names = ["ウミガメ号", "ティンダ号", "マーラン号"]
+            rival_names = ["ウミガメ号", "ティンダ号", "マーラン号", "クブラ号", "アガリ号"]
             p_class = player_horse.get_class_name()
             
             for i in range(RACE_TOTAL - 1):
                 rival = Horse(rival_names[i] if i < len(rival_names) else f"馬{i+1}")
-                # 序盤（未勝利）はライバルを弱体化 (プレイヤーの 70-90% 程度)
+                
                 if p_class == "未勝利":
+                    # 序盤はライバルを弱体化 (プレイヤーの 75-90% 程度)
                     rival.speed = int(player_horse.speed * random.uniform(0.75, 0.90))
                     rival.stamina = int(player_horse.stamina * random.uniform(0.75, 0.90))
-                    # 根性は接戦を演出するためそこまで下げない
                     rival.guts = int(player_horse.guts * random.uniform(0.85, 1.0))
+                elif p_class == "一般":
+                    # 一般クラス: +15% 程度のブースト。しっかり育てないと勝てない
+                    rival.speed = int(max(70, player_horse.speed) * random.uniform(1.05, 1.15))
+                    rival.stamina = int(max(70, player_horse.stamina) * random.uniform(1.05, 1.15))
+                    rival.guts = int(player_horse.guts * random.uniform(1.0, 1.2))
+                else:
+                    # 重賞・G1級: 「絶望的な壁」。180-230の高ステータスを設定
+                    rival.speed = random.randint(190, 235)
+                    rival.stamina = random.randint(190, 235)
+                    rival.guts = random.randint(180, 220)
+                    rival.wisdom = random.randint(180, 220)
                 
                 rr = RaceHorse(rival, is_player=False, player_index=0)
                 rr.lane_y = i + 1

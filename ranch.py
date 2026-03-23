@@ -44,19 +44,28 @@ class Ranch:
         h = self.horses.pop(index)
         h.retired = True
         
-        # 引退ボーナス
-        bonus = h.contribution * 10
+        # 引退功労金
+        bonus = h.contribution * 5
         self.balance += bonus
 
         # 繁殖へ
-        target_list = self.stallions if h.gender == "牡馬" else self.broodmares
-        target_name = "種牡馬" if h.gender == "牡馬" else "繁殖牝馬"
-        
-        if len(target_list) < 8:
-            target_list.append(h)
-            return True, f"{h.name} 引退！(功労金{bonus}G)。{target_name}になりました！"
+        if h.gender == "牝馬":
+            # 牝馬は引退すれば自動で繁殖入り可能
+            if len(self.broodmares) < 8:
+                self.broodmares.append(h)
+                return True, f"{h.name} 引退。(功労金{bonus}G)。繁殖牝馬となりました。"
+            else:
+                return True, f"{h.name} 引退。(功労金{bonus}G)。繁殖枠がいっぱいです。"
         else:
-            return True, f"{h.name} 引退！(功労金{bonus}G)。空きがなく繁殖入りできず。"
+            # 牡馬はG1勝利経験がある場合のみ種牡馬入り
+            if h.g1_wins > 0:
+                if len(self.stallions) < 8:
+                    self.stallions.append(h)
+                    return True, f"{h.name} 引退。名馬として種牡馬入りしました！"
+                else:
+                    return True, f"{h.name} 引退。種牡馬枠が一杯です。"
+            else:
+                return True, f"{h.name} 引退。(功労金{bonus}G)。お疲れ様でした。"
 
     def breed_horse(self, stallion_idx, mare_idx, foal_name=None):
         if stallion_idx < 0 or stallion_idx >= len(self.stallions):
@@ -69,36 +78,38 @@ class Ranch:
         stallion = self.stallions[stallion_idx]
         mare = self.broodmares[mare_idx]
         
-        # import Horse lazily to avoid circular imports if any, or just import at top? Wait, Horse is needed.
-        # Actually in breed, we call Horse.breed. We need to import Horse.
         from horse import Horse
         foal = Horse.breed(stallion, mare, name=foal_name)
         self.horses.append(foal)
-        return True, f"{foal.name} が誕生しました！"
+        return True, f"{foal.name} が誕生したさぁ！父:{stallion.name} 母:{mare.name}"
 
-    # ---------- エターナル・パドック ----------
+    # ---------- 時の部屋 (Eternal Paddock) ----------
     def add_to_paddock(self, horse_index):
+        cost = 1500 # 登録料
+        if self.balance < cost:
+            return False, f"資金不足さぁ（登録料:{cost}G必要）"
         if len(self.paddock) >= self.MAX_PADDOCK:
-            return False, "パドック枠がいっぱいです。"
+            return False, "時の部屋がいっぱいです。"
         if horse_index < 0 or horse_index >= len(self.horses):
-            return False, "無効なインデックスです。"
+            return False, "無効な馬です。"
+            
         horse = self.horses.pop(horse_index)
+        self.balance -= cost
         horse.in_paddock = True
         self.paddock.append(horse)
-        return True, f"{horse.name}をエターナル・パドックへ！"
+        return True, f"{horse.name}を『時の部屋』へ！ (費用:{cost}G)" 
 
     def remove_from_paddock(self, paddock_index):
         if paddock_index < 0 or paddock_index >= len(self.paddock):
-            return False, "無効なインデックスです。"
+            return False, "無効な馬です。"
         horse = self.paddock.pop(paddock_index)
         horse.in_paddock = False
         ok, msg = self.add_horse(horse)
         if not ok:
-            # 牧場がいっぱいなら戻す
             horse.in_paddock = True
             self.paddock.insert(paddock_index, horse)
-            return False, "牧場に空きがありません。"
-        return True, f"{horse.name}が牧場に戻りました！"
+            return False, "牧場に空きがないさぁ。"
+        return True, f"{horse.name}が『時の部屋』から戻りました！"
 
     # ---------- 週次更新 ----------
     def weekly_update(self):

@@ -970,7 +970,10 @@ class App:
             return "休養", items, self.sub_cursor
 
         elif self.sub_menu == "ranch":
-            items = ["馬 切替", "時の部屋"]
+            items = []
+            if len(self.game.ranch.horses) > 1:
+                items.append("馬 切替")
+            items.append("時の部屋")
             if self.game.calendar.month in [1, 2, 3]:
                 items.append("種付け")
             items.append("戻る")
@@ -981,13 +984,18 @@ class App:
             
         elif self.sub_menu == "breed_stallion":
             items = [f"{s.name}({s.speed})" for s in self.game.ranch.stallions]
-            if not items: items = ["(なし)"]
+            items.append("戻る")
             return "種牡馬", items, self.sub_cursor
             
         elif self.sub_menu == "breed_mare":
             items = [f"{m.name}({m.speed})" for m in self.game.ranch.broodmares]
-            if not items: items = ["(なし)"]
+            items.append("戻る")
             return "繁殖牝馬", items, self.sub_cursor
+
+        elif self.sub_menu == "paddock_select":
+            items = [f"{h.name}" for h in self.game.ranch.horses]
+            items.append("戻る")
+            return "預ける馬を選択", items, self.sub_cursor
             
         elif self.sub_menu == "race_calendar":
             races = self.game.calendar.get_upcoming_races()
@@ -1026,6 +1034,18 @@ class App:
         elif self.state == STATE_REST_SELECT:
             if self.sub_cursor == 0: return "【ほうぼく】\n疲労を中程度回復し、馬の\n『気分』を上向かせる。\n与那国の自然でリフレッシュさぁ！"
             if self.sub_cursor == 1: return "【サウナ】\n疲労を大幅に回復するが、\n少し体重が減る。一気に\n疲れを取るならこれさぁ！"
+            return "前のメニューに戻るさぁ"
+
+        elif self.sub_menu == "ranch":
+            sel = items[self.sub_cursor] if items else ""
+            if sel == "馬 切替": return "【馬 切替】\n操作する馬を切り替えるさぁ"
+            if sel == "時の部屋": return "【時の部屋】\n馬をパドックへ送るさぁ。\n加齢が止まる便利な場所だぞ。\n（維持費: 毎月300G）"
+            if sel == "種付け": return "【種付け】\n引退した馬を掛け合わせ、\n新しい子を誕生させるさぁ！"
+            return "前のメニューに戻るさぁ"
+
+        elif self.sub_menu == "paddock":
+            if self.sub_cursor == 0: return "【預ける】\n今いる馬を時の部屋へ送るさぁ。\n(最大3頭まで)"
+            if self.sub_cursor == 1: return "【引き出す】\n時の部屋の馬を戻すさぁ。\n(牧場の空きが必要)"
             return "前のメニューに戻るさぁ"
 
         return None
@@ -1209,24 +1229,30 @@ class App:
             elif sel == "時の部屋":
                 self.sub_menu = "paddock"
                 self.sub_cursor = 0
+            elif sel == "戻る":
+                self.sub_menu = None
             elif sel == "種付け":
                 self.sub_menu = "breed_stallion"
                 self.sub_cursor = 0
-            elif sel == "戻る":
-                self.sub_menu = None
                 
         elif self.sub_menu == "paddock":
             if sel == "預ける":
-                if h:
-                    idx = self.game.ranch.horses.index(h)
+                if len(self.game.ranch.horses) > 1:
+                    # 預ける馬を選択するサブメニューへ
+                    self.sub_menu = "paddock_select"
+                    self.sub_cursor = 0
+                elif self.game.ranch.horses:
+                    # 1頭しかいない場合はその馬を預ける
+                    idx = 0
                     ok, msg = self.game.ranch.add_to_paddock(idx)
                     self.game._add_log(msg)
                     if ok: self.game.select_next_horse()
+                    self.sub_menu = None
                 else:
                     self.game._add_log("馬がいません。")
-                self.sub_menu = None
             elif sel == "引き出す":
                 if self.game.ranch.paddock:
+                    # 引き出す馬を選択 (現在は最後の一頭を自動引き出し)
                     idx = len(self.game.ranch.paddock) - 1
                     ok, msg = self.game.ranch.remove_from_paddock(idx)
                     self.game._add_log(msg)
@@ -1234,16 +1260,33 @@ class App:
                     self.game._add_log("パドックに馬がいません。")
                 self.sub_menu = None
             elif sel == "戻る":
-                self.sub_menu = None
+                self.sub_menu = "ranch"
+                self.sub_cursor = 0
                 
+        elif self.sub_menu == "paddock_select":
+            if sel == "戻る":
+                self.sub_menu = "paddock"
+                self.sub_cursor = 0
+            else:
+                ok, msg = self.game.ranch.add_to_paddock(cursor)
+                self.game._add_log(msg)
+                if ok: self.game.select_next_horse()
+                self.sub_menu = None
+
         elif self.sub_menu == "breed_stallion":
-            if sel == "(なし)": return
+            if sel == "戻る":
+                self.sub_menu = "ranch"
+                self.sub_cursor = 0
+                return
             self.selected_stallion = cursor
             self.sub_menu = "breed_mare"
             self.sub_cursor = 0
             
         elif self.sub_menu == "breed_mare":
-            if sel == "(なし)": return
+            if sel == "戻る":
+                self.sub_menu = "breed_stallion"
+                self.sub_cursor = 0
+                return
             ok, msg = self.game.ranch.breed_horse(self.selected_stallion, cursor, "新星号")
             self.game._add_log(msg)
             self.sub_menu = None

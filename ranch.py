@@ -5,7 +5,7 @@ class Ranch:
     """Manages horse slots, balance, and the Eternal Paddock."""
 
     INITIAL_BALANCE = 5000
-    MAINTENANCE_FEE = 100      # per paddock horse per week
+    MAINTENANCE_FEE = 75       # per paddock horse per week (300G/month)
     MAX_HORSES = 2             # expandable to 3
     MAX_PADDOCK = 3
 

@@ -1,0 +1,37 @@
+{
+    "y": 1,
+    "m": 2,
+    "w": 2,
+    "bal": 5300,
+    "hs": [
+        {
+            "na": "サナエ",
+            "ag": 2,
+            "ge": "牝馬",
+            "sp": 84,
+            "st": 46,
+            "gu": 48,
+            "lu": 65,
+            "te": 67,
+            "wt": 203,
+            "bw": 199,
+            "fa": 81,
+            "co": 8,
+            "rt": false,
+            "ip": false,
+            "ap": {
+                "base_color": 1,
+                "face_marking": 2,
+                "mane_tail_color": 0,
+                "leg_marking": 0
+            },
+            "pm": 300,
+            "tr": null,
+            "tw": -1
+        }
+    ],
+    "pd": [],
+    "st": [],
+    "br": [],
+    "rc": ""
+}

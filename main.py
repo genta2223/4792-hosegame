@@ -1049,6 +1049,26 @@ class App:
         self.state = STATE_RANCH_MESSAGE
         self._reset_typewriter()
 
+    def _update_rest_select(self):
+        """Update logic for the rest select screen."""
+        title, items, cursor = self._get_current_menu()
+        
+        if pyxel.btnp(pyxel.KEY_UP):
+            play_se(SE_CURSOR)
+            self.sub_cursor = (self.sub_cursor - 1) % len(items)
+        if pyxel.btnp(pyxel.KEY_DOWN):
+            play_se(SE_CURSOR)
+            self.sub_cursor = (self.sub_cursor + 1) % len(items)
+            
+        if pyxel.btnp(pyxel.KEY_RETURN):
+            sel = items[self.sub_cursor]
+            self._handle_rest_select(sel)
+            
+        if pyxel.btnp(pyxel.KEY_BACKSPACE) or pyxel.btnp(pyxel.KEY_ESCAPE):
+            play_se(SE_CANCEL)
+            self.state = STATE_PLAY
+            self.sub_menu = None
+
     def _update_play(self):
         h = self.game.selected_horse
         

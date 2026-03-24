@@ -55,6 +55,52 @@ def text_width(text):
     return len(text) * 4
 
 
+def _wrap_text(text, line_len):
+    """Simple text wrapper for Japanese characters."""
+    lines = []
+    for i in range(0, len(text), line_len):
+        lines.append(text[i:i+line_len])
+    return lines
+
+
+def draw_parameter_gauge(x, y, label, val, cap, max_val=255):
+    """Draw a dot-style parameter gauge with a cap marker. Hardened against freezes."""
+    jp_text(x, y, label, COL_WHITE)
+    
+    # 物理的な数値保証 (Noneや文字列対策)
+    try:
+        val = int(val or 0)
+        cap = int(cap or 0)
+        max_val = max(1, int(max_val or 255)) # 0除算防止
+    except (ValueError, TypeError):
+        val = 0
+        cap = 0
+        max_val = 255
+        
+    gx = int(x) + 38
+    gy = int(y)
+    gw = 60
+    gh = 4
+    
+    # クランプ処理
+    val = max(0, min(val, max_val))
+    cap = max(0, min(cap, max_val))
+    
+    # Base
+    pyxel.rect(gx, gy + 1, gw, gh, COL_DKGRAY)
+    
+    # Segments (dot-style)
+    # 描画幅を整数で計算
+    fill_w = int((val / max_val) * gw)
+    for i in range(0, fill_w, 2):
+        # 座標とサイズを必ず int() に
+        pyxel.rect(int(gx + i), gy + 1, 1, gh, COL_LGRASS)
+    
+    # Cap Marker
+    cx = gx + int((cap / max_val) * gw)
+    pyxel.line(int(cx), gy, int(cx), gy + gh + 1, COL_SUN)
+
+
 # ====================================================================
 #  DS3風ウィンドウ描画
 # ====================================================================
@@ -134,6 +180,7 @@ def draw_background(frame):
         pyxel.line(0, y, SCREEN_W, y, col)
 
     # 太陽
+    # 経過週によって色や位置を少し変える（夕方演出など）
     sun_y = 12 + int(math.sin(frame * 0.02) * 2)
     pyxel.circ(200, sun_y, 10, COL_SUN)
     pyxel.circ(200, sun_y, 7, 10)
@@ -350,25 +397,19 @@ def draw_main_screen(frame, game, left_title, left_items, cursor_idx, wide_menu=
             jp_text(aw_x, sy, aw_text, COL_GRAY)
             sy += 12
             
-            # 血統の表示 (2代血統 + タイプ)
-            ped_text = f"父({horse.sire_type}) × 母({horse.dam_type})"
-            jp_text(info_x + 6, sy, ped_text, COL_DKGRAY)
+            # 簡略化した情報（クラスと状態のみ）
+            c_name, _ = horse.get_class_info()
+            jp_text(info_x + 6, sy, f"クラス: {c_name}", COL_WHITE)
             sy += 12
-
-            # 調子とおじぃの助言
             jp_text(info_x + 6, sy, f"体調: {horse.fatigue_text()}", _cond_color(horse.fatigue))
             sy += 12
             jp_text(info_x + 6, sy, f"気分: {horse.condition_text()}", COL_WHITE)
             sy += 12
-            
-            # 目標レースの表示
+
             if horse.target_race:
                 name = horse.target_race
-                if len(name) > 6:
-                    name = name[:5] + ".."
-                tr_text = f"目標:{name}"
-                jp_text(info_x + 6, sy, tr_text, COL_SUNSET)
-                
+                if len(name) > 8: name = name[:7] + ".."
+                jp_text(info_x + 6, sy, f"目標:{name}", COL_SUNSET)
                 w_text = f"あと{horse.target_weeks_left}週"
                 w_x = info_x + info_w - text_width(w_text) - 4
                 jp_text(w_x, sy, w_text, COL_WHITE)
@@ -383,27 +424,73 @@ def draw_main_screen(frame, game, left_title, left_items, cursor_idx, wide_menu=
     draw_window(2, log_y, SCREEN_W - 4, log_h)
 
     ly = log_y + 4
-    for msg in game.recent_logs:
+    for msg in game.recent_logs[-4:]: # 直近4件
         col = COL_WHITE
-        if "故障" in msg:
-            col = COL_RED
-        elif "賞金" in msg or "1着" in msg:
-            col = COL_SUN
-        elif "イベント" in msg:
-            col = COL_SUNSET
-        elif "年目" in msg:
-            col = COL_LGRASS
-
-        clean = msg.replace("⚠", "!").replace("🏆", "*").replace("📅", ">")
-        clean = clean.replace("🐴", "+").replace("🎍", "#").replace("💨", "~").replace("🥈", "*")
-        jp_text(8, ly, clean[:28], col)
+        if "故障" in msg: col = COL_RED
+        elif "1着" in msg: col = COL_SUN
+        
+        clean = msg.replace("⚠", "!").replace("🏆", "*")
+        jp_text(8, ly, clean[:30], col)
         ly += 10
-        if ly >= SCREEN_H - 4:
-            break
 
-    # --- 操作ヒント ---
-    jp_text(4, 216, "↑↓:選択 Enter:決定 BS:戻る", COL_DKGRAY)
+def draw_ranch_screen(frame, game, horse_list, selected_idx, advice_text):
+    """Deeply overhauled Ranch menu: Pedigree, Gauges, and Ojii."""
+    pyxel.cls(COL_BLACK)
+    draw_background(frame)
+    
+    # 選択中の馬
+    horse = None
+    if selected_idx < len(game.ranch.horses):
+        horse = game.ranch.horses[selected_idx]
+    
+    # --- 左: 所有馬リスト ---
+    list_w = 80
+    draw_window(2, BG_H + 2, list_w, 85, "所有馬")
+    draw_menu_list(6, BG_H + 12, horse_list, selected_idx, w=list_w-8)
+    
+    # --- 右: 個別詳細 ---
+    det_x, det_y = list_w + 4, BG_H + 2
+    det_w = SCREEN_W - det_x - 2
+    draw_window(det_x, det_y, det_w, 85, "詳細")
+    
+    if horse:
+        sy = det_y + 10
+        # 上段: 名前、年齢、体重
+        jp_text(det_x + 6, sy, horse.name, COL_WHITE)
+        status_text = f"{horse.age}才 {horse.weight}kg"
+        jp_text(det_x + det_w - text_width(status_text) - 6, sy, status_text, COL_GRAY)
+        sy += 12
+        
+        # 中段: 血統 (Sire x Dam)
+        jp_text(det_x + 6, sy, "血統:", COL_DKGRAY)
+        sy += 10
+        ped = f"{horse.sire}({horse.sire_type}) x {horse.dam}({horse.dam_type})"
+        if len(ped) > 20: ped = ped[:19] + ".."
+        jp_text(det_x + 12, sy, ped, COL_WHITE)
+        sy += 14
+        
+        # 下段: パラメーター・ゲージ
+        draw_parameter_gauge(det_x + 6, sy, "速さ", horse.speed, horse.caps.get("speed", 220))
+        sy += 10
+        draw_parameter_gauge(det_x + 6, sy, "体力", horse.stamina, horse.caps.get("stamina", 220))
+        sy += 10
+        draw_parameter_gauge(det_x + 6, sy, "根性", horse.guts, horse.caps.get("guts", 220))
+    else:
+        jp_text(det_x + 10, det_y + 35, "馬を選択してさぁ", COL_GRAY)
 
+    # --- 下部: おじぃの鑑定 ---
+    msg_y = 164
+    draw_window(2, msg_y, SCREEN_W - 4, 46, "おじぃの鑑定")
+    
+    draw_ojii(8, msg_y + 12, frame)
+    
+    adv_lines = _wrap_text(advice_text, 22)
+    ay = msg_y + 10
+    for line in adv_lines[:3]:
+        jp_text(35, ay, line, COL_WHITE)
+        ay += 12
+        
+    jp_text(4, 216, "↑↓:移動 Enter:決定 BS:戻る", COL_DKGRAY)
 
 def _cond_color(fatigue):
     if fatigue >= 80:
@@ -804,11 +891,18 @@ def draw_vs_ready_screen(frame, vs_horses, cursor):
     draw_window(4, 26, SCREEN_W - 8, 100, "出走馬")
     sy = 38
     for i, h in enumerate(vs_horses):
+        if not h: continue
         p_idx = i + 1
         col = _player_colors.get(p_idx, COL_WHITE)
-        label = f"{p_idx}P: {h.name}"
+        # getattrを用いて属性参照を安全に (NullPointer/AttributeError防止)
+        name = getattr(h, 'name', '名無し')
+        spd = getattr(h, 'speed', 0)
+        sta = getattr(h, 'stamina', 0)
+        gut = getattr(h, 'guts', 0)
+        
+        label = f"{p_idx}P: {name}"
         jp_text(12, sy, label, col)
-        stats = f"SPD{h.speed} STA{h.stamina} GUT{h.guts}"
+        stats = f"SPD{spd} STA{sta} GUT{gut}"
         jp_text(130, sy, stats, COL_GRAY)
         sy += 16
 

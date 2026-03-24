@@ -1016,6 +1016,8 @@ class App:
 
     def _get_preview_text(self):
         """Return preview text for the current menu selection."""
+        # Fix: Get current menu items to avoid NameError in sub-menu logic
+        _, items, _ = self._get_current_menu()
         if self.sub_menu == "train_loc":
             if self.sub_cursor == 0: return "【比川】\n各能力がバランス良く\n上昇し、気性も改善さぁ"
             if self.sub_cursor == 1: return "【久部良】\nスタミナと根性を\n重点的に鍛えるさぁ"

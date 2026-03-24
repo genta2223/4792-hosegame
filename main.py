@@ -739,13 +739,22 @@ class App:
             self.tutorial_sub_phase = 0
             self._reset_typewriter()
         elif step == 8:
-            # 休養選択 (説明含む)
+            # 休養選択 (サウナ/放牧) - 通常プレイと合わせる
             self.menu_cursor = 2
-            if pyxel.btnp(pyxel.KEY_RETURN) and self.tutorial_input_cooldown == 0:
+            if pyxel.btnp(pyxel.KEY_UP) or self._virtual_btn_p == pyxel.KEY_UP:
+                play_se(SE_CURSOR)
+                self.sub_cursor = (self.sub_cursor - 1) % 2
+            if pyxel.btnp(pyxel.KEY_DOWN) or self._virtual_btn_p == pyxel.KEY_DOWN:
+                play_se(SE_CURSOR)
+                self.sub_cursor = (self.sub_cursor + 1) % 2
+                
+            if (pyxel.btnp(pyxel.KEY_RETURN) or self._virtual_btn_p == pyxel.KEY_RETURN) and self.tutorial_input_cooldown == 0:
                 play_se(SE_CONFIRM)
-                self.game.do_rest()
+                rest_type = "pasture" if self.sub_cursor == 0 else "sauna"
+                self.game.do_rest(rest_type=rest_type)
                 self.tutorial_step = 9
                 self.tutorial_sub_phase = 0
+                self.sub_cursor = 0
                 self._reset_typewriter()
         elif step == 9:
             # 「よくやったさぁ」などの完了メッセージ
@@ -1644,6 +1653,8 @@ class App:
             sub = "train_int"
         elif step == 6:
             sub = "feed"
+        elif step == 8:
+            sub = "rest"
         else:
             sub = None
 
@@ -1653,6 +1664,8 @@ class App:
             title, items, cursor = "開墾(深さ)", TRAIN_INTENSITY, self.sub_cursor
         elif sub == "feed":
             title, items, cursor = "給餌", FEED_ITEMS, self.sub_cursor
+        elif sub == "rest":
+            title, items, cursor = "休養", ["放牧する", "サウナへ行く"], self.sub_cursor
         else:
             title, items, cursor = "チュートリアル", MAIN_COMMANDS, self.menu_cursor
 

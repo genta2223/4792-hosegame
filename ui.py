@@ -455,6 +455,7 @@ def draw_ranch_screen(frame, game, horse_list, selected_idx, advice_text):
         draw_horse(det_x + det_w - 45, det_y + 35, horse, frame)
 
         # 1. 名前、年齢、体重
+        sy = det_y + 10
         name_text = horse.name
         if text_width(name_text) > 75:
             name_text = name_text[:8] + ".."

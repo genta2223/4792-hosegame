@@ -101,7 +101,6 @@ class RaceEngine:
 
         # プレイヤー馬 (1P) - 万一Noneの場合のガード
         if player_horse is None:
-            from horse import Horse
             player_horse = Horse("名無しの与那国馬(G)")
             player_horse.speed = 100; player_horse.stamina = 100; player_horse.guts = 100
 

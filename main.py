@@ -1,6 +1,7 @@
 """Main entry point for どぅなん・ダッシュ！ — DS3風操作"""
 
 import sys
+import os
 import pyxel
 from game import GameState
 from race import RaceEngine

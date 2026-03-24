@@ -515,7 +515,8 @@ def _wt_color(horse):
 #  タイトル画面
 # ====================================================================
 
-def draw_title(frame, cursor):
+def draw_title(frame, cursor, has_data=True):
+    """Draw title screen with dynamic menu colors."""
     pyxel.cls(COL_BG)
 
     for y in range(60, 100):
@@ -540,9 +541,14 @@ def draw_title(frame, cursor):
     items = ["はじめから", "つづきから", "パスワード対戦"]
     y = 160
     for i, item in enumerate(items):
-        col = COL_WHITE if i == cursor else COL_GRAY
+        is_disabled = (i == 2 and not has_data)
+        
         if i == cursor:
+            col = COL_SUN
             pyxel.tri(80, y + 2, 80, y + 8, 84, y + 5, COL_SUN)
+        else:
+            col = COL_DKGRAY if is_disabled else COL_GRAY
+            
         jp_text(90, y, item, col)
         y += 15
 

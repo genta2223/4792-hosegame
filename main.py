@@ -306,36 +306,44 @@ class App:
             play_se(SE_CURSOR)
             
         if pyxel.btnp(pyxel.KEY_RETURN):
-            play_se(SE_CONFIRM)
-            stop_bgm()
-            self._title_bgm_started = False
+            # セーブデータの有無をチェック
+            any_data = self._get_has_any_data()
+            
             if self.title_cursor == 0:
+                play_se(SE_CONFIRM)
+                stop_bgm()
+                self._title_bgm_started = False
                 self.state = STATE_PROLOGUE
                 self._reset_typewriter()
                 self.dialogue_index = 0
             elif self.title_cursor == 1:
-                self.state = STATE_LOAD_SELECT
-                self.sub_cursor = 0
-            elif self.title_cursor == 2:
-                # VSモード突入前にセーブデータの有無をチェック
-                any_data = False
-                from save_load import _web_exists
-                for i in range(3):
-                    if os.path.exists(f"save_slot_{i}.json") or _web_exists(i):
-                        any_data = True
-                        break
-                
                 if any_data:
+                    play_se(SE_CONFIRM)
+                    stop_bgm()
+                    self._title_bgm_started = False
+                    self.state = STATE_LOAD_SELECT
+                    self.sub_cursor = 0
+                else:
+                    play_se(SE_CANCEL)
+            elif self.title_cursor == 2:
+                if any_data:
+                    play_se(SE_CONFIRM)
+                    stop_bgm()
+                    self._title_bgm_started = False
                     self.state = STATE_VS_LOAD_SELECT
                     self.sub_cursor = 0
                     self.password_input = ""
                     self.password_error = ""
                 else:
-                    # データがない場合はおじぃの警告
-                    self.ranch_msg_text = "まずは馬を育てるか、\nパスワードを入力してさぁ！"
-                    self.ranch_msg_callback = None
-                    self.state = STATE_RANCH_MESSAGE
-                    self._reset_typewriter()
+                    play_se(SE_CANCEL)
+
+    def _get_has_any_data(self):
+        """Helper to check if any save data exists in files or LocalStorage."""
+        from save_load import _web_exists
+        for i in range(3):
+            if os.path.exists(f"save_slot_{i}.json") or _web_exists(i):
+                return True
+        return False
 
     def _update_prologue(self):
         self._advance_typewriter()
@@ -500,6 +508,11 @@ class App:
 
     def _update_vs_load_select(self):
         """Pick a horse from save slot for VS 1P."""
+        # 不正な遷移ガード
+        if not self._get_has_any_data():
+            self.state = STATE_TITLE
+            return
+
         if pyxel.btnp(pyxel.KEY_UP):
             self.sub_cursor = (self.sub_cursor - 1) % 4
             play_se(SE_CURSOR)
@@ -1511,7 +1524,8 @@ class App:
         pyxel.cls(0)
 
         if self.state == STATE_TITLE:
-            draw_title(self.frame, self.title_cursor)
+            has_data = self._get_has_any_data()
+            draw_title(self.frame, self.title_cursor, has_data=has_data)
         elif self.state == STATE_PROLOGUE:
             self._draw_prologue()
         elif self.state == STATE_NAMING:

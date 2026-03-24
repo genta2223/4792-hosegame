@@ -3,6 +3,7 @@
 import sys
 import os
 import pyxel
+import json
 from game import GameState
 from race import RaceEngine
 from ui import (
@@ -138,6 +139,7 @@ class App:
         # モバイル対応：仮想パッド
         self._last_mouse_state = False
         self._virtual_btn_p = None
+        self._ai_input_queue = [] # AIからの擬似入力用
 
         # プロローグ
         self.dialogue_index = 0
@@ -241,12 +243,16 @@ class App:
         if pyxel.btnp(pyxel.KEY_F12):
             self.debug_mode = not self.debug_mode
 
+        # AIデバッグ: F11で状態をJSONダンプ
+        if pyxel.btnp(pyxel.KEY_F11) or "--ai-debug" in sys.argv:
+            self._dump_state()
+
         # デバッグパネル表示切り替え
         if self.debug_mode and pyxel.btnp(pyxel.KEY_F1):
             self.debug_panel_open = not self.debug_panel_open
 
-        # デバッグ: 数字キーで各ステートにジャンプ
-        if self.debug_mode and self.debug_panel_open:
+        # デバッグ: 各ステートにジャンプ
+        if self.debug_mode:
             self._handle_debug_jump()
 
         if self.state == STATE_TITLE:
@@ -304,14 +310,14 @@ class App:
             play_bgm(BGM_TITLE)
             self._title_bgm_started = True
 
-        if pyxel.btnp(pyxel.KEY_UP):
+        if self._get_btnp(pyxel.KEY_UP):
             self.title_cursor = (self.title_cursor - 1) % 3
             play_se(SE_CURSOR)
-        if pyxel.btnp(pyxel.KEY_DOWN):
+        if self._get_btnp(pyxel.KEY_DOWN):
             self.title_cursor = (self.title_cursor + 1) % 3
             play_se(SE_CURSOR)
             
-        if pyxel.btnp(pyxel.KEY_RETURN):
+        if self._get_btnp(pyxel.KEY_RETURN):
             # セーブデータの有無をチェック
             any_data = self._get_has_any_data()
             
@@ -353,12 +359,12 @@ class App:
 
     def _update_prologue(self):
         self._advance_typewriter()
-        if pyxel.btnp(pyxel.KEY_RETURN):
+        if self._get_btnp(pyxel.KEY_RETURN) or self._get_btnp(pyxel.KEY_SPACE) or pyxel.btnp(pyxel.MOUSE_BUTTON_LEFT):
             if self._skip_or_advance():
                 self.dialogue_index += 1
                 self._reset_typewriter()
                 if self.dialogue_index < len(PROLOGUE_DIALOGUES):
-                    play_se(SE_CURSOR) # 台詞送りSE
+                    play_se(SE_MESSAGE) # 台詞送りSE
                 if self.dialogue_index >= len(PROLOGUE_DIALOGUES):
                     play_se(SE_CONFIRM)
                     self.state = STATE_NAMING
@@ -368,20 +374,20 @@ class App:
         self._advance_typewriter()
         n = len(NAME_CANDIDATES)
 
-        if pyxel.btnp(pyxel.KEY_RIGHT):
+        if self._get_btnp(pyxel.KEY_RIGHT):
             play_se(SE_CURSOR)
             self.name_selected_index = (self.name_selected_index + 1) % n
-        if pyxel.btnp(pyxel.KEY_LEFT):
+        if self._get_btnp(pyxel.KEY_LEFT):
             play_se(SE_CURSOR)
             self.name_selected_index = (self.name_selected_index - 1) % n
-        if pyxel.btnp(pyxel.KEY_DOWN):
+        if self._get_btnp(pyxel.KEY_DOWN):
             play_se(SE_CURSOR)
             self.name_selected_index = (self.name_selected_index + 2) % n
-        if pyxel.btnp(pyxel.KEY_UP):
+        if self._get_btnp(pyxel.KEY_UP):
             play_se(SE_CURSOR)
             self.name_selected_index = (self.name_selected_index - 2) % n
 
-        if pyxel.btnp(pyxel.KEY_RETURN):
+        if self._get_btnp(pyxel.KEY_RETURN):
             chosen_name = NAME_CANDIDATES[self.name_selected_index]
             if chosen_name == "自分で決める":
                 self.state = STATE_MANUAL_NAMING
@@ -400,32 +406,32 @@ class App:
         grid = [HIRAGANA_GRID, KATAKANA_GRID, ALPHA_GRID][self.naming_mode]
         
         # ソフトウェアキーボードの操作
-        if pyxel.btnp(pyxel.KEY_UP):
+        if self._get_btnp(pyxel.KEY_UP):
             limit = 6 if self.naming_cursor_row == 11 else 5
             self.naming_cursor_col = (self.naming_cursor_col - 1) % limit
             if self.naming_cursor_row < 11:
                 while grid[self.naming_cursor_row][self.naming_cursor_col] == "　":
                     self.naming_cursor_col = (self.naming_cursor_col - 1) % 5
             play_se(SE_CURSOR)
-        if pyxel.btnp(pyxel.KEY_DOWN):
+        if self._get_btnp(pyxel.KEY_DOWN):
             limit = 6 if self.naming_cursor_row == 11 else 5
             self.naming_cursor_col = (self.naming_cursor_col + 1) % limit
             if self.naming_cursor_row < 11:
                 while grid[self.naming_cursor_row][self.naming_cursor_col] == "　":
                     self.naming_cursor_col = (self.naming_cursor_col + 1) % 5
             play_se(SE_CURSOR)
-        if pyxel.btnp(pyxel.KEY_LEFT):
+        if self._get_btnp(pyxel.KEY_LEFT):
             self.naming_cursor_row = (self.naming_cursor_row - 1) % 12
             while self.naming_cursor_row < 11 and grid[self.naming_cursor_row][self.naming_cursor_col] == "　":
                 self.naming_cursor_row = (self.naming_cursor_row - 1) % 12
             play_se(SE_CURSOR)
-        if pyxel.btnp(pyxel.KEY_RIGHT):
+        if self._get_btnp(pyxel.KEY_RIGHT):
             self.naming_cursor_row = (self.naming_cursor_row + 1) % 12
             while self.naming_cursor_row < 11 and grid[self.naming_cursor_row][self.naming_cursor_col] == "　":
                 self.naming_cursor_row = (self.naming_cursor_row + 1) % 12
             play_se(SE_CURSOR)
 
-        if pyxel.btnp(pyxel.KEY_RETURN):
+        if self._get_btnp(pyxel.KEY_RETURN):
             if self.naming_cursor_row == 11:
                 # 右側のアクションボタン
                 idx = self.naming_cursor_col
@@ -459,24 +465,24 @@ class App:
                     self.password_input += char
                     play_se(SE_CONFIRM)
 
-        if pyxel.btnp(pyxel.KEY_BACKSPACE):
+        if self._get_btnp(pyxel.KEY_BACKSPACE):
             if self.password_input:
                 self.password_input = self.password_input[:-1]
                 play_se(SE_CANCEL)
         
-        if pyxel.btnp(pyxel.KEY_ESCAPE):
+        if self._get_btnp(pyxel.KEY_ESCAPE):
             play_se(SE_CANCEL)
             self.state = STATE_NAMING
 
     def _update_save_select(self):
-        if pyxel.btnp(pyxel.KEY_UP):
+        if self._get_btnp(pyxel.KEY_UP):
             self.sub_cursor = (self.sub_cursor - 1) % 4
             play_se(SE_CURSOR)
-        if pyxel.btnp(pyxel.KEY_DOWN):
+        if self._get_btnp(pyxel.KEY_DOWN):
             self.sub_cursor = (self.sub_cursor + 1) % 4
             play_se(SE_CURSOR)
         
-        if pyxel.btnp(pyxel.KEY_RETURN):
+        if self._get_btnp(pyxel.KEY_RETURN):
             if self.sub_cursor < 3:
                 save_to_slot(self.sub_cursor, self.game.ranch, self.game.calendar)
                 play_se(SE_CONFIRM)
@@ -484,20 +490,20 @@ class App:
             self.state = STATE_PLAY
             self.sub_menu = None
             
-        if pyxel.btnp(pyxel.KEY_BACKSPACE):
+        if self._get_btnp(pyxel.KEY_BACKSPACE):
             self.state = STATE_PLAY
             self.sub_menu = None
             play_se(SE_CANCEL)
 
     def _update_load_select(self):
-        if pyxel.btnp(pyxel.KEY_UP):
+        if self._get_btnp(pyxel.KEY_UP):
             self.sub_cursor = (self.sub_cursor - 1) % 4
             play_se(SE_CURSOR)
-        if pyxel.btnp(pyxel.KEY_DOWN):
+        if self._get_btnp(pyxel.KEY_DOWN):
             self.sub_cursor = (self.sub_cursor + 1) % 4
             play_se(SE_CURSOR)
         
-        if pyxel.btnp(pyxel.KEY_RETURN):
+        if self._get_btnp(pyxel.KEY_RETURN):
             if self.sub_cursor < 3:
                 ok, res = load_from_slot(self.sub_cursor)
                 if ok:
@@ -508,7 +514,7 @@ class App:
             self.state = STATE_TITLE
             play_se(SE_CANCEL)
 
-        if pyxel.btnp(pyxel.KEY_BACKSPACE):
+        if self._get_btnp(pyxel.KEY_BACKSPACE):
             self.state = STATE_TITLE
             play_se(SE_CANCEL)
 
@@ -519,14 +525,14 @@ class App:
             self.state = STATE_TITLE
             return
 
-        if pyxel.btnp(pyxel.KEY_UP):
+        if self._get_btnp(pyxel.KEY_UP):
             self.sub_cursor = (self.sub_cursor - 1) % 4
             play_se(SE_CURSOR)
-        if pyxel.btnp(pyxel.KEY_DOWN):
+        if self._get_btnp(pyxel.KEY_DOWN):
             self.sub_cursor = (self.sub_cursor + 1) % 4
             play_se(SE_CURSOR)
         
-        if pyxel.btnp(pyxel.KEY_RETURN):
+        if self._get_btnp(pyxel.KEY_RETURN):
             if self.sub_cursor < 3:
                 ok, res = load_from_slot(self.sub_cursor)
                 if ok:
@@ -551,7 +557,7 @@ class App:
             self.state = STATE_TITLE
             play_se(SE_CANCEL)
 
-        if pyxel.btnp(pyxel.KEY_BACKSPACE):
+        if self._get_btnp(pyxel.KEY_BACKSPACE):
             self.state = STATE_TITLE
             play_se(SE_CANCEL)
 
@@ -565,14 +571,14 @@ class App:
 
         if not items: return
 
-        if pyxel.btnp(pyxel.KEY_UP):
+        if self._get_btnp(pyxel.KEY_UP):
             self.sub_cursor = (self.sub_cursor - 1) % len(items)
             play_se(SE_CURSOR)
-        if pyxel.btnp(pyxel.KEY_DOWN):
+        if self._get_btnp(pyxel.KEY_DOWN):
             self.sub_cursor = (self.sub_cursor + 1) % len(items)
             play_se(SE_CURSOR)
 
-        if pyxel.btnp(pyxel.KEY_RETURN):
+        if self._get_btnp(pyxel.KEY_RETURN):
             action = items[self.sub_cursor]
             if action == "add":
                 play_se(SE_CONFIRM)
@@ -595,7 +601,7 @@ class App:
                 self.vs_horses = []
                 self.state = STATE_TITLE
 
-        if pyxel.btnp(pyxel.KEY_BACKSPACE):
+        if self._get_btnp(pyxel.KEY_BACKSPACE):
             play_se(SE_CANCEL)
             self.vs_horses = []
             self.state = STATE_TITLE
@@ -625,14 +631,14 @@ class App:
     def _update_calendar_proceed(self):
         self.cal_frame += 1
         if self.cal_frame >= 35:
-            if pyxel.btnp(pyxel.KEY_RETURN):
+            if self._get_btnp(pyxel.KEY_RETURN):
                 play_se(SE_CONFIRM)
                 self.state = self.cal_next_state
 
     def _update_ranch_message(self):
         """Show a message window in ranch context (Ojii advice)."""
         self._advance_typewriter()
-        if pyxel.btnp(pyxel.KEY_RETURN):
+        if self._get_btnp(pyxel.KEY_RETURN):
             if self._skip_or_advance():
                 if self.ranch_msg_callback:
                     callback = self.ranch_msg_callback
@@ -650,7 +656,7 @@ class App:
 
         # サブフェーズ0: メッセージ表示中
         if self.tutorial_sub_phase == 0:
-            if pyxel.btnp(pyxel.KEY_RETURN):
+            if self._get_btnp(pyxel.KEY_RETURN):
                 if not self._is_text_complete():
                     self._skip_or_advance()
                 else:
@@ -673,7 +679,7 @@ class App:
         elif step == 2:
             # 「開墾を選んで」
             self.menu_cursor = 0
-            if pyxel.btnp(pyxel.KEY_RETURN) and self.tutorial_input_cooldown == 0:
+            if self._get_btnp(pyxel.KEY_RETURN) and self.tutorial_input_cooldown == 0:
                 play_se(SE_CONFIRM)
                 self.tutorial_step = 3
                 self.tutorial_sub_phase = 0
@@ -681,13 +687,13 @@ class App:
                 self._reset_typewriter()
         elif step == 3:
             # 場所選択
-            if pyxel.btnp(pyxel.KEY_UP): 
+            if self._get_btnp(pyxel.KEY_UP): 
                 play_se(SE_CURSOR)
                 self.sub_cursor = (self.sub_cursor - 1) % len(TRAIN_LOCATIONS)
-            if pyxel.btnp(pyxel.KEY_DOWN):
+            if self._get_btnp(pyxel.KEY_DOWN):
                 play_se(SE_CURSOR)
                 self.sub_cursor = (self.sub_cursor + 1) % len(TRAIN_LOCATIONS)
-            if pyxel.btnp(pyxel.KEY_RETURN) and self.tutorial_input_cooldown == 0:
+            if self._get_btnp(pyxel.KEY_RETURN) and self.tutorial_input_cooldown == 0:
                 play_se(SE_CONFIRM)
                 locs = ["higawa", "kubura", "sonai"]
                 self.train_location = locs[self.sub_cursor]
@@ -697,13 +703,13 @@ class App:
                 self._reset_typewriter()
         elif step == 4:
             # 掘り方選択
-            if pyxel.btnp(pyxel.KEY_UP):
+            if self._get_btnp(pyxel.KEY_UP):
                 play_se(SE_CURSOR)
                 self.sub_cursor = (self.sub_cursor - 1) % len(TRAIN_INTENSITY)
-            if pyxel.btnp(pyxel.KEY_DOWN):
+            if self._get_btnp(pyxel.KEY_DOWN):
                 play_se(SE_CURSOR)
                 self.sub_cursor = (self.sub_cursor + 1) % len(TRAIN_INTENSITY)
-            if pyxel.btnp(pyxel.KEY_RETURN) and self.tutorial_input_cooldown == 0:
+            if self._get_btnp(pyxel.KEY_RETURN) and self.tutorial_input_cooldown == 0:
                 intensity = "normal" if self.sub_cursor == 0 else "deep"
                 play_se(SE_TRAIN)
                 self.game.do_train(self.train_location, intensity)
@@ -719,13 +725,13 @@ class App:
         elif step == 6:
             # 給餌選択 (説明含む)
             self.menu_cursor = 1
-            if pyxel.btnp(pyxel.KEY_UP):
+            if self._get_btnp(pyxel.KEY_UP):
                 play_se(SE_CURSOR)
                 self.sub_cursor = (self.sub_cursor - 1) % len(FEED_ITEMS)
-            if pyxel.btnp(pyxel.KEY_DOWN):
+            if self._get_btnp(pyxel.KEY_DOWN):
                 play_se(SE_CURSOR)
                 self.sub_cursor = (self.sub_cursor + 1) % len(FEED_ITEMS)
-            if pyxel.btnp(pyxel.KEY_RETURN) and self.tutorial_input_cooldown == 0:
+            if self._get_btnp(pyxel.KEY_RETURN) and self.tutorial_input_cooldown == 0:
                 play_se(SE_CONFIRM)
                 feed = "bagasse" if self.sub_cursor == 0 else "choumeisou"
                 self.game.do_feed(feed)
@@ -741,14 +747,14 @@ class App:
         elif step == 8:
             # 休養選択 (サウナ/放牧) - 通常プレイと合わせる
             self.menu_cursor = 2
-            if pyxel.btnp(pyxel.KEY_UP) or self._virtual_btn_p == pyxel.KEY_UP:
+            if self._get_btnp(pyxel.KEY_UP):
                 play_se(SE_CURSOR)
                 self.sub_cursor = (self.sub_cursor - 1) % 2
-            if pyxel.btnp(pyxel.KEY_DOWN) or self._virtual_btn_p == pyxel.KEY_DOWN:
+            if self._get_btnp(pyxel.KEY_DOWN):
                 play_se(SE_CURSOR)
                 self.sub_cursor = (self.sub_cursor + 1) % 2
                 
-            if (pyxel.btnp(pyxel.KEY_RETURN) or self._virtual_btn_p == pyxel.KEY_RETURN) and self.tutorial_input_cooldown == 0:
+            if (self._get_btnp(pyxel.KEY_RETURN)) and self.tutorial_input_cooldown == 0:
                 play_se(SE_CONFIRM)
                 rest_type = "pasture" if self.sub_cursor == 0 else "sauna"
                 self.game.do_rest(rest_type=rest_type)
@@ -758,7 +764,7 @@ class App:
                 self._reset_typewriter()
         elif step == 9:
             # 「よくやったさぁ」などの完了メッセージ
-            if pyxel.btnp(pyxel.KEY_RETURN) and self.tutorial_input_cooldown == 0:
+            if self._get_btnp(pyxel.KEY_RETURN) and self.tutorial_input_cooldown == 0:
                 play_se(SE_CONFIRM)
                 self._trigger_calendar_proceed(STATE_PLAY)
                 self._reset_typewriter()
@@ -766,7 +772,7 @@ class App:
     def _update_tutorial_race(self):
         self._advance_typewriter()
 
-        if pyxel.btnp(pyxel.KEY_RETURN):
+        if self._get_btnp(pyxel.KEY_RETURN):
             if self._skip_or_advance():
                 if self.tutorial_step >= len(TUTORIAL_RACE_DIALOGUES) - 1:
                     play_se(SE_CONFIRM)
@@ -783,7 +789,7 @@ class App:
 
     def _update_race(self):
         # Bキー (または仮想B) でスキップ
-        if pyxel.btnp(pyxel.KEY_BACKSPACE) or self._virtual_btn_p == pyxel.KEY_BACKSPACE:
+        if self._get_btnp(pyxel.KEY_BACKSPACE):
             self.race_engine.skip_to_final()
 
         is_running = self.race_engine.update()
@@ -800,7 +806,7 @@ class App:
             self.fanfare_played = True
 
     def _update_race_result(self):
-        if pyxel.btnp(pyxel.KEY_RETURN):
+        if self._get_btnp(pyxel.KEY_RETURN):
             play_se(SE_CONFIRM)
             rank = self.race_engine.get_player_rank()
             prize = 0
@@ -895,32 +901,32 @@ class App:
         grid = [HIRAGANA_GRID, KATAKANA_GRID][self.naming_mode]
 
         # ソフトウェアキーボードの操作
-        if pyxel.btnp(pyxel.KEY_UP):
+        if self._get_btnp(pyxel.KEY_UP):
             limit = 6 if self.naming_cursor_row == 11 else 5
             self.naming_cursor_col = (self.naming_cursor_col - 1) % limit
             if self.naming_cursor_row < 11:
                 while grid[self.naming_cursor_row][self.naming_cursor_col] == "　":
                     self.naming_cursor_col = (self.naming_cursor_col - 1) % 5
             play_se(SE_CURSOR)
-        if pyxel.btnp(pyxel.KEY_DOWN):
+        if self._get_btnp(pyxel.KEY_DOWN):
             limit = 6 if self.naming_cursor_row == 11 else 5
             self.naming_cursor_col = (self.naming_cursor_col + 1) % limit
             if self.naming_cursor_row < 11:
                 while grid[self.naming_cursor_row][self.naming_cursor_col] == "　":
                     self.naming_cursor_col = (self.naming_cursor_col + 1) % 5
             play_se(SE_CURSOR)
-        if pyxel.btnp(pyxel.KEY_LEFT):
+        if self._get_btnp(pyxel.KEY_LEFT):
             self.naming_cursor_row = (self.naming_cursor_row - 1) % 12
             while self.naming_cursor_row < 11 and grid[self.naming_cursor_row][self.naming_cursor_col] == "　":
                 self.naming_cursor_row = (self.naming_cursor_row - 1) % 12
             play_se(SE_CURSOR)
-        if pyxel.btnp(pyxel.KEY_RIGHT):
+        if self._get_btnp(pyxel.KEY_RIGHT):
             self.naming_cursor_row = (self.naming_cursor_row + 1) % 12
             while self.naming_cursor_row < 11 and grid[self.naming_cursor_row][self.naming_cursor_col] == "　":
                 self.naming_cursor_row = (self.naming_cursor_row + 1) % 12
             play_se(SE_CURSOR)
 
-        if pyxel.btnp(pyxel.KEY_RETURN):
+        if self._get_btnp(pyxel.KEY_RETURN):
             if self.naming_cursor_row == 11:
                 # アクションボタン
                 idx = self.naming_cursor_col
@@ -1510,23 +1516,23 @@ class App:
             self.ranch_horse_cursor = min(self.ranch_horse_cursor, n)
 
             # 2. 戻る操作（最優先）
-            if pyxel.btnp(pyxel.KEY_BACKSPACE) or pyxel.btnp(pyxel.KEY_ESCAPE) or self._virtual_btn_p == pyxel.KEY_BACKSPACE:
+            if self._get_btnp(pyxel.KEY_BACKSPACE) or self._get_btnp(pyxel.KEY_ESCAPE):
                 self.state = STATE_PLAY
                 play_se(SE_CANCEL)
                 return
 
             # 3. 選択移動
-            if pyxel.btnp(pyxel.KEY_UP) or self._virtual_btn_p == pyxel.KEY_UP:
+            if self._get_btnp(pyxel.KEY_UP):
                 self.ranch_horse_cursor = (self.ranch_horse_cursor - 1) % (n + 1)
                 self._update_advice()
                 play_se(SE_CURSOR)
-            elif pyxel.btnp(pyxel.KEY_DOWN) or self._virtual_btn_p == pyxel.KEY_DOWN:
+            elif self._get_btnp(pyxel.KEY_DOWN):
                 self.ranch_horse_cursor = (self.ranch_horse_cursor + 1) % (n + 1)
                 self._update_advice()
                 play_se(SE_CURSOR)
                 
             # 4. 決定
-            if pyxel.btnp(pyxel.KEY_RETURN) or self._virtual_btn_p == pyxel.KEY_RETURN:
+            if self._get_btnp(pyxel.KEY_RETURN):
                 if self.ranch_horse_cursor == n: # リスト末尾の「戻る」
                     self.state = STATE_PLAY
                     play_se(SE_CANCEL)
@@ -1693,8 +1699,67 @@ class App:
         draw_race_result(self.race_engine)
 
     # ---------- デバッグモード ----------
+    def _get_btnp(self, key):
+        """物理キー/仮想パッド/AIコマンドを統合した入力判定。"""
+        if pyxel.btnp(key): return True
+        if self._virtual_btn_p == key: 
+            self._virtual_btn_p = None # 消費
+            return True
+        if key in self._ai_input_queue:
+            self._ai_input_queue.remove(key)
+            return True
+        return False
+
+    def _dump_state(self):
+        """現在のゲーム状態をJSON形式でダンプ（AI検証用）。"""
+        h = self.game.selected_horse
+        data = {
+            "state": self.state,
+            "state_name": STATE_NAMES.get(self.state, "UNKNOWN"),
+            "tutorial_step": self.tutorial_step,
+            "money": self.game.money,
+            "actions_left": self.game.actions_left,
+            "horse": {
+                "name": h.name if h else "None",
+                "fatigue": h.fatigue if h else 0,
+                "speed": h.speed if h else 0,
+                "stamina": h.stamina if h else 0
+            } if h else None,
+            "cursor": self.menu_cursor,
+            "sub_cursor": self.sub_cursor,
+            "ranch_cursor": self.ranch_horse_cursor
+        }
+        print(f"DEBUG_STATE_DUMP: {json.dumps(data)}")
+
     def _handle_debug_jump(self):
-        """デバッグパネル表示中: 数字キーでステートジャンプ。"""
+        """F2, F3等で特定箇所へワープ。"""
+        if pyxel.btnp(pyxel.KEY_F2):
+            self.state = STATE_RANCH
+            self.ranch_horse_cursor = 0
+            self._update_advice()
+            print("WARP: STATE_RANCH")
+        elif pyxel.btnp(pyxel.KEY_F3):
+            self.state = STATE_TUTORIAL
+            self.tutorial_step = 8 # 休養デモ
+            self._reset_typewriter()
+            print("WARP: TUTORIAL_REST")
+        # F12: 状態ダンプ
+        if pyxel.btnp(pyxel.KEY_F12):
+            self._dump_state()
+
+        # F1: デバッグパネル表示切替
+        if pyxel.btnp(pyxel.KEY_F1):
+            self.debug_panel_open = not self.debug_panel_open
+            if self.debug_panel_open:
+                self.game._add_log("[DEBUG] パネル表示")
+            else:
+                self.game._add_log("[DEBUG] パネル非表示")
+            return # パネル表示中は他のキー入力を受け付けない
+
+        if not self.debug_panel_open:
+            return
+
+        # デバッグパネル表示中: 数字キーでステートジャンプ。"""
         jump_map = {
             pyxel.KEY_0: STATE_TITLE,
             pyxel.KEY_1: STATE_PROLOGUE,

@@ -449,30 +449,32 @@ def draw_ranch_screen(frame, game, horse_list, selected_idx, advice_text):
     draw_window(det_x, det_y, det_w, 85, "詳細")
     
     if horse:
+        # 右側に馬を描画
+        draw_horse(det_x + det_w - 45, det_y + 35, horse, frame)
+
+        # 1. 名前、年齢、体重
         sy = det_y + 10
-        # 上段: 名前、年齢、体重
         jp_text(det_x + 6, sy, horse.name, COL_WHITE)
         status_text = f"{horse.age}才 {horse.weight}kg"
-        jp_text(det_x + det_w - text_width(status_text) - 6, sy, status_text, COL_GRAY)
-        sy += 12
-        
-        # 中段: 血統 (Sire x Dam)
-        jp_text(det_x + 6, sy, "血統:", COL_DKGRAY)
-        sy += 10
-        ped = f"{horse.sire}({horse.sire_type}) x {horse.dam}({horse.dam_type})"
-        if len(ped) > 20: ped = ped[:19] + ".."
-        jp_text(det_x + 12, sy, ped, COL_WHITE)
+        jp_text(det_x + 100 - text_width(status_text), sy, status_text, COL_GRAY)
         sy += 14
         
-        # 下段: パラメーター・ゲージ
+        # 2. 血統 (1行に圧縮 & トリミング)
+        jp_text(det_x + 6, sy, "血統:", COL_DKGRAY)
+        ped = f"{horse.sire} x {horse.dam}"
+        if len(ped) > 18: ped = ped[:17] + ".."
+        jp_text(det_x + 35, sy, ped, COL_WHITE)
+        sy += 14
+        
+        # 3. パラメーター・ゲージ (少し上に詰める)
         draw_parameter_gauge(det_x + 6, sy, "速さ", horse.speed, horse.caps.get("speed", 220))
         sy += 10
         draw_parameter_gauge(det_x + 6, sy, "体力", horse.stamina, horse.caps.get("stamina", 220))
         sy += 10
         draw_parameter_gauge(det_x + 6, sy, "根性", horse.guts, horse.caps.get("guts", 220))
-        sy += 14
+        sy += 12 # 余裕を持たせる
         
-        # 昇級ヒント (移動先)
+        # 4. 昇級ヒント (枠線への干渉回避)
         _, c_hint = horse.get_class_info()
         jp_text(det_x + 6, sy, c_hint, COL_LGRASS)
     else:

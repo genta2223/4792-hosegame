@@ -51,6 +51,7 @@ STATE_RANCH_MESSAGE  = 19
 STATE_CALENDAR_PROCEED = 20
 STATE_VS_READY       = 21
 STATE_REST_SELECT    = 22
+STATE_RANCH          = 23
 
 TYPEWRITER_SPEED = 2
 
@@ -82,6 +83,7 @@ STATE_NAMES = {
     20: "CALENDAR_PROCEED",
     21: "VS_READY",
     22: "REST_SELECT",
+    23: "RANCH",
 }
 
 # おじぃセリフ
@@ -148,6 +150,8 @@ class App:
         self.menu_cursor = 0
         self.sub_menu = None       # None, 'train_loc', 'train_int', 'feed'
         self.sub_cursor = 0
+        self.ranch_horse_cursor = 0
+        self.ranch_advice = ""
         self.train_location = None  # 選択された場所
         # レース
         self.race_engine = None
@@ -312,10 +316,25 @@ class App:
                 self.state = STATE_LOAD_SELECT
                 self.sub_cursor = 0
             elif self.title_cursor == 2:
-                self.state = STATE_VS_LOAD_SELECT
-                self.sub_cursor = 0
-                self.password_input = ""
-                self.password_error = ""
+                # VSモード突入前にセーブデータの有無をチェック
+                any_data = False
+                from save_load import _web_exists
+                for i in range(3):
+                    if os.path.exists(f"save_slot_{i}.json") or _web_exists(i):
+                        any_data = True
+                        break
+                
+                if any_data:
+                    self.state = STATE_VS_LOAD_SELECT
+                    self.sub_cursor = 0
+                    self.password_input = ""
+                    self.password_error = ""
+                else:
+                    # データがない場合はおじぃの警告
+                    self.ranch_msg_text = "まずは馬を育てるか、\nパスワードを入力してさぁ！"
+                    self.ranch_msg_callback = None
+                    self.state = STATE_RANCH_MESSAGE
+                    self._reset_typewriter()
 
     def _update_prologue(self):
         self._advance_typewriter()
@@ -498,9 +517,17 @@ class App:
                         self.sub_cursor = 0
                         play_se(SE_CONFIRM)
                         return
-                    else:
-                        play_se(SE_CANCEL)
-                        return
+                
+                # スロットに馬がいない、またはロード失敗
+                from horse import Horse
+                guest = Horse("名無しの与那国馬")
+                guest.speed = 120; guest.stamina = 120; guest.guts = 120
+                self.vs_horses = [guest]
+                self.state = STATE_VS_READY
+                self.sub_cursor = 0
+                play_se(SE_CONFIRM)
+                return
+
             self.state = STATE_TITLE
             play_se(SE_CANCEL)
 
@@ -1168,14 +1195,21 @@ class App:
                     self.sub_menu = "race_calendar"
                     self.sub_cursor = 0
             elif sel == "牧場":
-                self.sub_menu = "ranch"
-                self.sub_cursor = 0
-            elif sel == "対戦パス発行":
-                # 対戦用パスワード(短縮)発行
-                pwd = generate_vs_password(h)
-                self.current_password_display = pwd
-                self.state = STATE_PASSWORD_SHOW
+                self.state = STATE_RANCH
+                self.ranch_horse_cursor = 0
+                self._update_advice()
                 play_se(SE_CONFIRM)
+                return
+            elif sel == "対戦パス発行":
+                if h:
+                    # 対戦用パスワード(短縮)発行
+                    pwd = generate_vs_password(h)
+                    self.current_password_display = pwd
+                    self.state = STATE_PASSWORD_SHOW
+                    play_se(SE_CONFIRM)
+                else:
+                    self.game._add_log("馬がいません。")
+                    play_se(SE_CANCEL)
             elif sel == "記録する":
                 self.state = STATE_SAVE_SELECT
                 self.sub_cursor = 0
@@ -1435,6 +1469,42 @@ class App:
         
         self.state = STATE_PLAY
 
+    def _update_ranch(self):
+        """Handle the new Ranch screen: Horse selection and Advice."""
+        n = len(self.game.ranch.horses)
+        
+        if pyxel.btnp(pyxel.KEY_UP):
+            self.ranch_horse_cursor = (self.ranch_horse_cursor - 1) % (n + 1)
+            self._update_advice()
+            play_se(SE_CURSOR)
+        if pyxel.btnp(pyxel.KEY_DOWN):
+            self.ranch_horse_cursor = (self.ranch_horse_cursor + 1) % (n + 1)
+            self._update_advice()
+            play_se(SE_CURSOR)
+            
+        if pyxel.btnp(pyxel.KEY_RETURN):
+            if self.ranch_horse_cursor == n: # 戻る
+                self.state = STATE_PLAY
+                play_se(SE_CANCEL)
+            else:
+                # 馬の切り替え（操作対象にする）
+                self.game.selected_horse_idx = self.ranch_horse_cursor
+                play_se(SE_CONFIRM)
+                
+        if pyxel.btnp(pyxel.KEY_BACKSPACE) or pyxel.btnp(pyxel.KEY_ESCAPE):
+            self.state = STATE_PLAY
+            play_se(SE_CANCEL)
+
+    def _update_advice(self):
+        """Recalculate Ojii's advice for the selected horse."""
+        n = len(self.game.ranch.horses)
+        if self.ranch_horse_cursor < n:
+            from advise_ai import get_horse_advice
+            h = self.game.ranch.horses[self.ranch_horse_cursor]
+            self.ranch_advice = get_horse_advice(h, self.game.calendar)
+        else:
+            self.ranch_advice = "前のメニューに\n戻るならここをクリックさぁ。"
+
     # ---------- DRAW ----------
     def draw(self):
         pyxel.cls(0)
@@ -1461,6 +1531,10 @@ class App:
             draw_slot_select_screen(self.frame, "どこに記録する？", [get_slot_info(i) for i in range(3)], self.sub_cursor)
         elif self.state == STATE_VS_LOAD_SELECT:
             draw_slot_select_screen(self.frame, "自分の馬を選ぶさぁ", [get_slot_info(i) for i in range(3)], self.sub_cursor)
+        elif self.state == STATE_RANCH:
+            h_names = [h.name for h in self.game.ranch.horses] + ["戻る"]
+            from ui import draw_ranch_screen
+            draw_ranch_screen(self.frame, self.game, h_names, self.ranch_horse_cursor, self.ranch_advice)
         elif self.state == STATE_RANCH_MESSAGE:
             # 牧場画面を背景におじぃのメッセージを表示
             draw_main_screen(self.frame, self.game, "おじぃ", [], 0)

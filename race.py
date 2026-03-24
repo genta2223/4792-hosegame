@@ -99,7 +99,12 @@ class RaceEngine:
         self.results = []  # 着順リスト
         self.is_vs_mode = vs_horses is not None and len(vs_horses) > 0
 
-        # プレイヤー馬 (1P)
+        # プレイヤー馬 (1P) - 万一Noneの場合のガード
+        if player_horse is None:
+            from horse import Horse
+            player_horse = Horse("名無しの与那国馬(G)")
+            player_horse.speed = 100; player_horse.stamina = 100; player_horse.guts = 100
+
         rh = RaceHorse(player_horse, is_player=True, player_index=1)
         rh.lane_y = 0
         self.horses.append(rh)

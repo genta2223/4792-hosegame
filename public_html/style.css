@@ -98,3 +98,22 @@ footer {
     font-size: 0.9rem;
     letter-spacing: 2px;
 }
+/* 追加するスタイル */
+.feature-img {
+    width: 100%;
+    height: auto;
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+    border: 2px solid #333;
+}
+
+header {
+    /* 以前の指定を上書き */
+    min-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding: 20px;
+}

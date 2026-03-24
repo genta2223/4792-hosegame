@@ -2,11 +2,33 @@ import json
 import zlib
 import base64
 import os
+import random
+import pyxel
 from calendar_system import Calendar
 from horse import Horse
 from ranch import Ranch
 
-def _encode_base64_safe(data: bytes) -> str:
+# --- JS LocalStorage Bridge ---
+def _web_save(slot_idx, data_str):
+    try:
+        import pyxel.dom as dom
+        key = f"4792_save_slot_{slot_idx}"
+        dom.window.localStorage.setItem(key, data_str)
+    except (ImportError, AttributeError):
+        pass
+
+def _web_load(slot_idx):
+    try:
+        import pyxel.dom as dom
+        key = f"4792_save_slot_{slot_idx}"
+        return dom.window.localStorage.getItem(key)
+    except (ImportError, AttributeError):
+        return None
+
+def _web_exists(slot_idx):
+    return _web_load(slot_idx) is not None
+
+
     # URL safe base64 without padding '='
     b64 = base64.urlsafe_b64encode(data).decode('ascii')
     return b64.rstrip('=')
@@ -90,7 +112,7 @@ def get_slot_filename(slot_idx):
     return f"save_slot_{slot_idx}.json"
 
 def save_to_slot(slot_idx, ranch, calendar):
-    """Save full game state to a JSON file."""
+    """Save full game state to a JSON file and LocalStorage."""
     state = {
         "y": calendar.year, "m": calendar.month, "w": calendar.week,
         "bal": ranch.balance,
@@ -100,18 +122,43 @@ def save_to_slot(slot_idx, ranch, calendar):
         "br": [_serialize_horse(h) for h in ranch.broodmares],
         "rc": ranch.reward_code
     }
-    with open(get_slot_filename(slot_idx), "w", encoding="utf-8") as f:
-        json.dump(state, f, ensure_ascii=False, indent=4)
+    json_str = json.dumps(state, ensure_ascii=False, indent=4)
+    
+    # Text file save (Native/Desktop)
+    try:
+        with open(get_slot_filename(slot_idx), "w", encoding="utf-8") as f:
+            f.write(json_str)
+    except:
+        pass
+        
+    # LocalStorage save (Web)
+    _web_save(slot_idx, json_str)
 
 def load_from_slot(slot_idx):
-    """Load full game state from a JSON file."""
+    """Load full game state from a JSON file or LocalStorage."""
     fname = get_slot_filename(slot_idx)
-    if not os.path.exists(fname):
-        return False, "ファイルが見つかりません"
-    try:
-        with open(fname, "r", encoding="utf-8") as f:
-            state = json.load(f)
+    state = None
+    
+    # Try LocalStorage first (Web prioritize)
+    web_data = _web_load(slot_idx)
+    if web_data:
+        try:
+            state = json.loads(web_data)
+        except:
+            state = None
+            
+    # If not found or failed, try local file
+    if not state and os.path.exists(fname):
+        try:
+            with open(fname, "r", encoding="utf-8") as f:
+                state = json.load(f)
+        except:
+            state = None
+            
+    if not state:
+        return False, "データが見つかりません"
         
+    try:
         cal = Calendar(state["y"], state["m"], state["w"])
         r = Ranch()
         r.balance = state["bal"]
@@ -125,13 +172,30 @@ def load_from_slot(slot_idx):
         return False, f"読込失敗: {str(e)}"
 
 def get_slot_info(slot_idx):
-    """Get summary info for a save slot."""
+    """Get summary info for a save slot (File or Web)."""
     fname = get_slot_filename(slot_idx)
-    if not os.path.exists(fname):
+    state = None
+    
+    # Try LocalStorage
+    web_data = _web_load(slot_idx)
+    if web_data:
+        try:
+            state = json.loads(web_data)
+        except:
+            pass
+            
+    # Try File
+    if not state and os.path.exists(fname):
+        try:
+            with open(fname, "r", encoding="utf-8") as f:
+                state = json.load(f)
+        except:
+            pass
+            
+    if not state:
         return None
+        
     try:
-        with open(fname, "r", encoding="utf-8") as f:
-            state = json.load(f)
         main_horse = state["hs"][0]["na"] if state["hs"] else "なし"
         return f"{state['y']}年{state['m']}月{state['w']}週 - {main_horse}"
     except:

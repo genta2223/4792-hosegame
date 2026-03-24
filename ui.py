@@ -468,19 +468,21 @@ def draw_ranch_screen(frame, game, horse_list, selected_idx, advice_text):
         sy += 14
         
         # 2. 血統 (1行に圧縮 & トリミング)
-        jp_text(det_x + 6, sy, "血統:", COL_DKGRAY)
-        ped = f"{horse.sire} x {horse.dam}"
-        if len(ped) > 18: ped = ped[:17] + ".."
+        blood_label = "血統:"
+        jp_text(det_x + 6, sy, blood_label, COL_DKGRAY)
+        ped = f"父({horse.sire}) x 母({horse.dam})"
+        if text_width(ped) > (det_w - 40):
+            ped = ped[:18] + ".."
         jp_text(det_x + 35, sy, ped, COL_WHITE)
-        sy += 14
+        sy += 12 
         
-        # 3. パラメーター・ゲージ (少し上に詰める)
+        # 3. パラメーター・ゲージ (さらに上に詰める)
         draw_parameter_gauge(det_x + 6, sy, "速さ", horse.speed, horse.caps.get("speed", 220))
         sy += 10
         draw_parameter_gauge(det_x + 6, sy, "体力", horse.stamina, horse.caps.get("stamina", 220))
         sy += 10
         draw_parameter_gauge(det_x + 6, sy, "根性", horse.guts, horse.caps.get("guts", 220))
-        sy += 12 # 余裕を持たせる
+        sy += 10 
         
         # 4. 昇級ヒント (枠線への干渉回避)
         _, c_hint = horse.get_class_info()
@@ -1324,3 +1326,30 @@ def draw_virtual_controller():
 
     # 操作ガイド（中央）
     jp_text(85, base_cy - 4, "DUNAN PAD", COL_DKGRAY)
+
+
+def draw_confirm_exit_dialog(frame, cursor):
+    """タイトル戻りの確認ダイアログを描画"""
+    dw, dh = 180, 70
+    dx, dy = (SCREEN_W - dw) // 2, (SCREEN_H - dh) // 2
+    
+    # ウィンドウを描画
+    draw_window(dx, dy, dw, dh, "確認")
+    
+    # テキスト表示
+    txt = "保存せずにタイトルに戻るさぁ？\n(未保存のデータは消えるよ)"
+    lines = _wrap_text(txt, 22)
+    for i, line in enumerate(lines):
+        jp_text(dx + 10, dy + 18 + i * 14, line, COL_WHITE)
+        
+    # ボタン描画
+    btn_y = dy + 48
+    # はい (cursor 0)
+    h_col = COL_WHITE if cursor == 0 else COL_GRAY
+    pyxel.rectb(dx + 30, btn_y, 50, 14, 7 if cursor == 0 else 13)
+    jp_text(dx + 46, btn_y + 4, "はい", h_col)
+    
+    # いいえ (cursor 1)
+    i_col = COL_WHITE if cursor == 1 else COL_GRAY
+    pyxel.rectb(dx + 100, btn_y, 50, 14, 7 if cursor == 1 else 13)
+    jp_text(dx + 112, btn_y + 4, "いいえ", i_col)

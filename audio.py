@@ -7,6 +7,7 @@ SE_TRAIN = 3
 SE_HOOF = 4
 SE_WIN = 5
 SE_LOSE = 6
+SE_MESSAGE = 7
 
 BGM_RANCH = 0
 BGM_RACE = 1
@@ -31,11 +32,13 @@ def init_audio():
         "c3 e3 f3 g3 b3 c4 r c4 b3 c4 e4 c4 g3 b3 c4 c4",
         "p", "7777777777", "n", 8
     )
-    # Lose — 寂しげだが希望を感じる短いフレーズ (C/E/F/G/B only)
+    # Lose
     pyxel.sounds[SE_LOSE].set(
         "g3 f3 e3 c3 r e3 c3 r c3 e3",
         "p", "6655443344", "n", 15
     )
+    # Message / Typewriter Blip
+    pyxel.sounds[SE_MESSAGE].set("c3", "p", "4", "n", 5)
 
     # --- BGM 0: Ranch (Dunan Sunkani Motif) ---
     # Ryukyu pentatonic: C E F G B only (no D, no A)
@@ -126,7 +129,7 @@ def init_audio():
     pyxel.musics[BGM_TITLE].set([30], [31], [], [])
 
 def play_se(idx):
-    if 0 <= idx <= 6:
+    if 0 <= idx <= 7:
         pyxel.play(3, idx)
 
 def play_bgm(idx):
@@ -134,7 +137,7 @@ def play_bgm(idx):
 
 def play_fanfare(idx):
     """Play a sound effect on channel 0 (highest priority, bypasses BGM stopping)."""
-    if 0 <= idx <= 6:
+    if 0 <= idx <= 7:
         pyxel.play(0, idx, loop=False)
 
 def stop_bgm():

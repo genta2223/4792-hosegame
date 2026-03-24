@@ -20,7 +20,7 @@ from ui import (
 )
 from audio import (
     init_audio, play_se, play_fanfare, play_bgm, stop_bgm,
-    SE_CURSOR, SE_CONFIRM, SE_CANCEL, SE_TRAIN, SE_WIN, SE_LOSE,
+    SE_CURSOR, SE_CONFIRM, SE_CANCEL, SE_TRAIN, SE_HOOF, SE_WIN, SE_LOSE, SE_MESSAGE,
     BGM_RANCH, BGM_RACE, BGM_TITLE
 )
 from save_load import (
@@ -54,6 +54,7 @@ STATE_CALENDAR_PROCEED = 20
 STATE_VS_READY       = 21
 STATE_REST_SELECT    = 22
 STATE_RANCH          = 23
+STATE_CONFIRM_EXIT   = 24
 
 TYPEWRITER_SPEED = 2
 
@@ -86,6 +87,7 @@ STATE_NAMES = {
     21: "VS_READY",
     22: "REST_SELECT",
     23: "RANCH",
+    24: "CONFIRM_EXIT",
 }
 
 # おじぃセリフ
@@ -198,6 +200,10 @@ class App:
         self.debug_mode = DEBUG_MODE
         self.debug_panel_open = False
 
+        # タイトル戻り確認
+        self.prev_state_before_confirm = STATE_PLAY
+        self.confirm_cursor = 1
+
         pyxel.run(self.update, self.draw)
 
     # ---------- タイプライター ----------
@@ -299,10 +305,14 @@ class App:
             self._update_load_select()
         elif self.state == STATE_VS_LOAD_SELECT:
             self._update_vs_load_select()
+        elif self.state == STATE_RANCH:
+            self._update_ranch()
         elif self.state == STATE_RANCH_MESSAGE:
             self._update_ranch_message()
         elif self.state == STATE_CALENDAR_PROCEED:
             self._update_calendar_proceed()
+        elif self.state == STATE_CONFIRM_EXIT:
+            self._update_confirm_exit()
 
     def _update_title(self):
         # タイトルBGM再生（初回のみ）
@@ -847,8 +857,10 @@ class App:
                 self._trigger_calendar_proceed(STATE_REWARD)
                 return
 
-            stop_bgm()
             self._trigger_calendar_proceed(STATE_PLAY)
+
+        if self._get_btnp(pyxel.KEY_BACKSPACE):
+            self._request_exit_to_title(STATE_RACE_RESULT)
 
     def _handle_password_typing(self):
         # Alphabet and numbers for password
@@ -969,12 +981,12 @@ class App:
                     self.password_input += char
                     play_se(SE_CONFIRM)
 
-        if pyxel.btnp(pyxel.KEY_BACKSPACE):
+        if self._get_btnp(pyxel.KEY_BACKSPACE):
             if self.password_input:
                 self.password_input = self.password_input[:-1]
                 play_se(SE_CANCEL)
         
-        if pyxel.btnp(pyxel.KEY_ESCAPE):
+        if self._get_btnp(pyxel.KEY_ESCAPE):
             play_se(SE_CANCEL)
             self.state = STATE_VS_READY
             self.sub_cursor = 0
@@ -1512,8 +1524,8 @@ class App:
         """Handle the new Ranch screen: Horse selection and Advice with stability guards."""
         try:
             n = len(self.game.ranch.horses)
-            # 1. 範囲外ガード: 馬が消えた際などの不正インデックスを防止
-            self.ranch_horse_cursor = min(self.ranch_horse_cursor, n)
+            # 1. 範囲外ガード: 選択肢（馬リスト + 戻る + タイトルへ）を考慮
+            self.ranch_horse_cursor = min(self.ranch_horse_cursor, n + 1)
 
             # 2. 戻る操作（最優先）
             if self._get_btnp(pyxel.KEY_BACKSPACE) or self._get_btnp(pyxel.KEY_ESCAPE):
@@ -1523,11 +1535,11 @@ class App:
 
             # 3. 選択移動
             if self._get_btnp(pyxel.KEY_UP):
-                self.ranch_horse_cursor = (self.ranch_horse_cursor - 1) % (n + 1)
+                self.ranch_horse_cursor = (self.ranch_horse_cursor - 1) % (n + 2)
                 self._update_advice()
                 play_se(SE_CURSOR)
             elif self._get_btnp(pyxel.KEY_DOWN):
-                self.ranch_horse_cursor = (self.ranch_horse_cursor + 1) % (n + 1)
+                self.ranch_horse_cursor = (self.ranch_horse_cursor + 1) % (n + 2)
                 self._update_advice()
                 play_se(SE_CURSOR)
                 
@@ -1536,6 +1548,8 @@ class App:
                 if self.ranch_horse_cursor == n: # リスト末尾の「戻る」
                     self.state = STATE_PLAY
                     play_se(SE_CANCEL)
+                elif self.ranch_horse_cursor == n + 1: # 「タイトルへ戻る」
+                    self._request_exit_to_title(STATE_RANCH)
                 else:
                     self.game.selected_horse_idx = self.ranch_horse_cursor
                     play_se(SE_CONFIRM)
@@ -1582,7 +1596,7 @@ class App:
         elif self.state == STATE_VS_LOAD_SELECT:
             draw_slot_select_screen(self.frame, "自分の馬を選ぶさぁ", [get_slot_info(i) for i in range(3)], self.sub_cursor)
         elif self.state == STATE_RANCH:
-            h_names = [h.name for h in self.game.ranch.horses] + ["戻る"]
+            h_names = [h.name for h in self.game.ranch.horses] + ["戻る", "タイトルへ戻る"]
             from ui import draw_ranch_screen
             draw_ranch_screen(self.frame, self.game, h_names, self.ranch_horse_cursor, self.ranch_advice)
         elif self.state == STATE_RANCH_MESSAGE:
@@ -1611,6 +1625,9 @@ class App:
             draw_manual_naming_screen(self.frame, self.password_input, 
                                        self.naming_cursor_row, self.naming_cursor_col, 
                                        self.naming_mode, self.password_error)
+        elif self.state == STATE_CONFIRM_EXIT:
+            from ui import draw_confirm_exit_dialog
+            draw_confirm_exit_dialog(self.frame, self.confirm_cursor)
 
         # デバッグオーバーレイ（全画面の上に描画）
         if self.debug_mode:
@@ -1733,22 +1750,22 @@ class App:
 
     def _handle_debug_jump(self):
         """F2, F3等で特定箇所へワープ。"""
-        if pyxel.btnp(pyxel.KEY_F2):
+        if self._get_btnp(pyxel.KEY_F2):
             self.state = STATE_RANCH
             self.ranch_horse_cursor = 0
             self._update_advice()
             print("WARP: STATE_RANCH")
-        elif pyxel.btnp(pyxel.KEY_F3):
+        elif self._get_btnp(pyxel.KEY_F3):
             self.state = STATE_TUTORIAL
             self.tutorial_step = 8 # 休養デモ
             self._reset_typewriter()
             print("WARP: TUTORIAL_REST")
         # F12: 状態ダンプ
-        if pyxel.btnp(pyxel.KEY_F12):
+        if self._get_btnp(pyxel.KEY_F12):
             self._dump_state()
 
         # F1: デバッグパネル表示切替
-        if pyxel.btnp(pyxel.KEY_F1):
+        if self._get_btnp(pyxel.KEY_F1):
             self.debug_panel_open = not self.debug_panel_open
             if self.debug_panel_open:
                 self.game._add_log("[DEBUG] パネル表示")
@@ -1773,12 +1790,12 @@ class App:
             pyxel.KEY_9: STATE_REWARD,
         }
         for key, target_state in jump_map.items():
-            if pyxel.btnp(key):
+            if self._get_btnp(key):
                 self._debug_jump_to(target_state)
                 break
 
-        # F2: 馬を即座に作成（馬がいない場合テスト不可なので）
-        if pyxel.btnp(pyxel.KEY_F2):
+        # F2: 馬を即座に作成
+        if self._get_btnp(pyxel.KEY_F2):
             if not self.game.ranch.horses:
                 self.game.set_starter_horse("デバッグ号")
                 self.game._add_log("[DEBUG] デバッグ馬を作成")
@@ -1786,19 +1803,19 @@ class App:
                 self.game._add_log("[DEBUG] 馬はすでにいます")
 
         # F3: 資金追加
-        if pyxel.btnp(pyxel.KEY_F3):
+        if self._get_btnp(pyxel.KEY_F3):
             self.game.ranch.balance += 10000
             self.game._add_log("[DEBUG] 資金+10000G")
 
         # F4: 疲労リセット
-        if pyxel.btnp(pyxel.KEY_F4):
+        if self._get_btnp(pyxel.KEY_F4):
             h = self.game.selected_horse
             if h:
                 h.fatigue = 0
                 self.game._add_log("[DEBUG] 疲労リセット")
 
         # F5: 週を進める
-        if pyxel.btnp(pyxel.KEY_F5):
+        if self._get_btnp(pyxel.KEY_F5):
             self._trigger_calendar_proceed(STATE_PLAY)
             self.game._add_log("[DEBUG] 1週進めました")
 
@@ -1910,6 +1927,31 @@ class App:
         y += 8
         pyxel.text(px + 4, y, "F2:Horse F3:+10kG F4:FAT=0 F5:Week++", 13)
 
+
+    def _request_exit_to_title(self, current_state):
+        self.prev_state_before_confirm = current_state
+        self.state = STATE_CONFIRM_EXIT
+        self.confirm_cursor = 1 # [いいえ] に初期化
+        play_se(SE_CURSOR)
+
+    def _update_confirm_exit(self):
+        if self._get_btnp(pyxel.KEY_LEFT):
+            self.confirm_cursor = 0 # はい
+            play_se(SE_CURSOR)
+        elif self._get_btnp(pyxel.KEY_RIGHT):
+            self.confirm_cursor = 1 # いいえ
+            play_se(SE_CURSOR)
+            
+        if self._get_btnp(pyxel.KEY_RETURN):
+            if self.confirm_cursor == 0: # はい
+                play_se(SE_CONFIRM)
+                self.state = STATE_TITLE
+                stop_bgm()
+                self._title_bgm_started = False
+                self.game._add_log("タイトル画面へ戻りましたさぁ")
+            else: # いいえ
+                play_se(SE_CANCEL)
+                self.state = self.prev_state_before_confirm
 
 if __name__ == "__main__":
     if DEBUG_MODE:

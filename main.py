@@ -133,6 +133,10 @@ class App:
         self.game = GameState()
         self.frame = 0
         self.fanfare_played = False
+        
+        # モバイル対応：仮想パッド
+        self._last_mouse_state = False
+        self._virtual_btn_p = None
 
         # プロローグ
         self.dialogue_index = 0
@@ -230,6 +234,7 @@ class App:
     # ---------- UPDATE ----------
     def update(self):
         self.frame += 1
+        self._update_virtual_pad()
 
         # デバッグ: F12でデバッグモード切り替え
         if pyxel.btnp(pyxel.KEY_F12):
@@ -767,6 +772,10 @@ class App:
 
 
     def _update_race(self):
+        # Bキー (または仮想B) でスキップ
+        if pyxel.btnp(pyxel.KEY_BACKSPACE) or self._virtual_btn_p == pyxel.KEY_BACKSPACE:
+            self.race_engine.skip_to_final()
+
         is_running = self.race_engine.update()
         if not is_running:
             stop_bgm()
@@ -1580,6 +1589,32 @@ class App:
         # デバッグオーバーレイ（全画面の上に描画）
         if self.debug_mode:
             self._draw_debug_overlay()
+
+        # モバイル対応：仮想パッド描画
+        import ui
+        ui.draw_virtual_controller()
+
+    def _update_virtual_pad(self):
+        """Simulate key presses based on mouse/touch on virtual controller."""
+        self._virtual_btn_p = None
+        if not pyxel.btn(pyxel.MOUSE_BUTTON_LEFT):
+            self._last_mouse_state = False
+            return
+        
+        if not self._last_mouse_state:
+            mx, my = pyxel.mouse_x, pyxel.mouse_y
+            # D-Pad (Left)
+            # U(24, 218), D(24, 242), L(7, 230), R(41, 230) - Width/Height 12
+            if 24<=mx<=36 and 218<=my<=230: self._virtual_btn_p = pyxel.KEY_UP
+            elif 24<=mx<=36 and 242<=my<=254: self._virtual_btn_p = pyxel.KEY_DOWN
+            elif 7<=mx<=19 and 230<=my<=242: self._virtual_btn_p = pyxel.KEY_LEFT
+            elif 41<=mx<=53 and 230<=my<=242: self._virtual_btn_p = pyxel.KEY_RIGHT
+            # A/B (Right)
+            # B(195, 237), A(235, 237) - Radius 12
+            elif (mx-235)**2 + (my-237)**2 <= 144: self._virtual_btn_p = pyxel.KEY_RETURN # A
+            elif (mx-195)**2 + (my-237)**2 <= 144: self._virtual_btn_p = pyxel.KEY_BACKSPACE # B
+        
+        self._last_mouse_state = True
 
     def _draw_prologue(self):
         text = self._current_text()

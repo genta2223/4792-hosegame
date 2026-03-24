@@ -305,6 +305,13 @@ class Horse:
         gain_str = ", ".join(final_gains) if final_gains else "変化なし"
         res = f"{loc_name}で{intensity_name}に開墾した ({gain_str})"
         
+        # 比川の33%ボーナス
+        if location == "higawa" and intensity == "normal":
+            if random.random() < 0.33:
+                self.condition = 100
+                self.stamina = clamp(self.stamina + 2)
+                res = "比川の風が、馬に力を与えたさぁ… (絶好調！)"
+
         if self.fatigue > 80:
             injury_chance = (self.fatigue - 80) ** 2 / 400.0
             if random.random() < injury_chance:

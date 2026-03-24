@@ -7,7 +7,7 @@ from race import GOAL_DISTANCE
 
 # ---------- レイアウト定数 ----------
 SCREEN_W = 256
-SCREEN_H = 224
+SCREEN_H = 256
 
 # 背景（上部エリア）
 BG_H = 75
@@ -1284,3 +1284,32 @@ def draw_reward_screen(frame, chars_shown, code):
         jp_text(16, win_y - 20, "特産品コード:", COL_SUN)
         pyxel.text(16, win_y - 10, code, COL_WHITE)
         jp_text(SCREEN_W - 60, win_y + win_h - 12, "Enterで進む", COL_DKGRAY)
+
+def draw_virtual_controller():
+    """Draw mobile-friendly D-pad and A/B buttons at the bottom area."""
+    # コントローラー配置エリア (215px以降)
+    con_y = 215
+    # pyxel.rect(0, con_y, SCREEN_W, SCREEN_H - con_y, COL_BLACK)
+    # pyxel.line(0, con_y, SCREEN_W, con_y, COL_DKGRAY)
+
+    # 十字キー (左側)
+    # 上(30, 222), 下(30, 246), 左(13, 234), 右(47, 234)
+    pyxel.rectb(24, 218, 12, 12, COL_GRAY) # U
+    pyxel.rectb(24, 242, 12, 12, COL_GRAY) # D
+    pyxel.rectb(7, 230, 12, 12, COL_GRAY)  # L
+    pyxel.rectb(41, 230, 12, 12, COL_GRAY) # R
+    
+    jp_text(26, 220, "^", COL_WHITE)
+    jp_text(26, 244, "v", COL_WHITE)
+    jp_text(9, 232, "<", COL_WHITE)
+    jp_text(43, 232, ">", COL_WHITE)
+
+    # A/B ボタン (右側)
+    # B(190, 235), A(230, 235)
+    pyxel.circb(195, 237, 12, COL_RED) # B
+    pyxel.circb(235, 237, 12, COL_SUN) # A
+    jp_text(192, 233, "B", COL_WHITE)
+    jp_text(232, 233, "A", COL_WHITE)
+
+    # 操作ガイド（中央）
+    jp_text(80, 233, "TOUCH PAD READY", COL_DKGRAY)

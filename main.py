@@ -516,6 +516,8 @@ class App:
         items.append("start")
         items.append("back")
 
+        if not items: return
+
         if pyxel.btnp(pyxel.KEY_UP):
             self.sub_cursor = (self.sub_cursor - 1) % len(items)
             play_se(SE_CURSOR)
@@ -1079,6 +1081,8 @@ class App:
         """Update logic for the rest select screen."""
         title, items, cursor = self._get_current_menu()
         
+        if not items: return
+
         if pyxel.btnp(pyxel.KEY_UP):
             play_se(SE_CURSOR)
             self.sub_cursor = (self.sub_cursor - 1) % len(items)
@@ -1108,6 +1112,8 @@ class App:
         # --- DS3風キーボード操作 ---
         title, items, cursor = self._get_current_menu()
         
+        if not items: return
+
         if pyxel.btnp(pyxel.KEY_UP):
             play_se(SE_CURSOR)
             cursor = (cursor - 1) % len(items)

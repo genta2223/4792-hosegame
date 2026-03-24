@@ -455,10 +455,15 @@ def draw_ranch_screen(frame, game, horse_list, selected_idx, advice_text):
         draw_horse(det_x + det_w - 45, det_y + 35, horse, frame)
 
         # 1. 名前、年齢、体重
-        sy = det_y + 10
-        jp_text(det_x + 6, sy, horse.name, COL_WHITE)
+        name_text = horse.name
+        if text_width(name_text) > 75:
+            name_text = name_text[:8] + ".."
+        jp_text(det_x + 6, sy, name_text, COL_WHITE)
+        
         status_text = f"{horse.age}才 {horse.weight}kg"
-        jp_text(det_x + 100 - text_width(status_text), sy, status_text, COL_GRAY)
+        # 名前から最低16px空ける。ただし窓枠に収まるように stats_x を調整
+        stats_x = max(det_x + 95 - text_width(status_text), det_x + 6 + text_width(name_text) + 16)
+        jp_text(stats_x, sy, status_text, COL_GRAY)
         sy += 14
         
         # 2. 血統 (1行に圧縮 & トリミング)

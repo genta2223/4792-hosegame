@@ -1494,30 +1494,40 @@ class App:
         self.state = STATE_PLAY
 
     def _update_ranch(self):
-        """Handle the new Ranch screen: Horse selection and Advice."""
-        n = len(self.game.ranch.horses)
-        
-        if pyxel.btnp(pyxel.KEY_UP):
-            self.ranch_horse_cursor = (self.ranch_horse_cursor - 1) % (n + 1)
-            self._update_advice()
-            play_se(SE_CURSOR)
-        if pyxel.btnp(pyxel.KEY_DOWN):
-            self.ranch_horse_cursor = (self.ranch_horse_cursor + 1) % (n + 1)
-            self._update_advice()
-            play_se(SE_CURSOR)
-            
-        if pyxel.btnp(pyxel.KEY_RETURN):
-            if self.ranch_horse_cursor == n: # 戻る
+        """Handle the new Ranch screen: Horse selection and Advice with stability guards."""
+        try:
+            n = len(self.game.ranch.horses)
+            # 1. 範囲外ガード: 馬が消えた際などの不正インデックスを防止
+            self.ranch_horse_cursor = min(self.ranch_horse_cursor, n)
+
+            # 2. 戻る操作（最優先）
+            if pyxel.btnp(pyxel.KEY_BACKSPACE) or pyxel.btnp(pyxel.KEY_ESCAPE) or self._virtual_btn_p == pyxel.KEY_BACKSPACE:
                 self.state = STATE_PLAY
                 play_se(SE_CANCEL)
-            else:
-                # 馬の切り替え（操作対象にする）
-                self.game.selected_horse_idx = self.ranch_horse_cursor
-                play_se(SE_CONFIRM)
+                return
+
+            # 3. 選択移動
+            if pyxel.btnp(pyxel.KEY_UP) or self._virtual_btn_p == pyxel.KEY_UP:
+                self.ranch_horse_cursor = (self.ranch_horse_cursor - 1) % (n + 1)
+                self._update_advice()
+                play_se(SE_CURSOR)
+            elif pyxel.btnp(pyxel.KEY_DOWN) or self._virtual_btn_p == pyxel.KEY_DOWN:
+                self.ranch_horse_cursor = (self.ranch_horse_cursor + 1) % (n + 1)
+                self._update_advice()
+                play_se(SE_CURSOR)
                 
-        if pyxel.btnp(pyxel.KEY_BACKSPACE) or pyxel.btnp(pyxel.KEY_ESCAPE):
+            # 4. 決定
+            if pyxel.btnp(pyxel.KEY_RETURN) or self._virtual_btn_p == pyxel.KEY_RETURN:
+                if self.ranch_horse_cursor == n: # リスト末尾の「戻る」
+                    self.state = STATE_PLAY
+                    play_se(SE_CANCEL)
+                else:
+                    self.game.selected_horse_idx = self.ranch_horse_cursor
+                    play_se(SE_CONFIRM)
+        except Exception as e:
+            # 万が一の例外発生時はフリーズ回避のため強制的に調教画面へ戻る
+            print(f"[CRITICAL] Ranch update error: {e}")
             self.state = STATE_PLAY
-            play_se(SE_CANCEL)
 
     def _update_advice(self):
         """Recalculate Ojii's advice for the selected horse."""

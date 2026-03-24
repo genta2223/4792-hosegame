@@ -6,44 +6,7 @@
     <title>どぅなん・ダッシュ！</title>
     <script src="https://cdn.jsdelivr.net/gh/kitao/pyxel@2.8.7/wasm/pyxel.js"></script>
 </head>
-<body style="background: #000; margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; height: 100vh;">
-    <script>
-        const version = "202603242154";
-        const url = "4792hose.pyxapp?v=" + version;
-
-        // Fetch the file manually to bypass Pyxel loader's extension check crash
-        fetch(url)
-            .then(response => {
-                if (!response.ok) throw new Error("HTTP error " + response.status);
-                return response.arrayBuffer();
-            })
-            .then(buffer => {
-                // Convert to base64 safely
-                const uint8 = new Uint8Array(buffer);
-                let binary = "";
-                for (let i = 0; i < uint8.length; i++) {
-                    binary += String.fromCharCode(uint8[i]);
-                }
-                const base64 = btoa(binary);
-
-                // Launch Pyxel with the embedded base64 data
-                launchPyxel({
-                    command: "play",
-                    name: "4792hose.pyxapp",
-                    base64: base64,
-                    gamepad: "all",
-                    controls: true
-                });
-            })
-            .catch(err => {
-                console.error("Failed to fetch with cache-busting, falling back:", err);
-                launchPyxel({
-                    command: "play",
-                    name: "4792hose.pyxapp",
-                    gamepad: "all",
-                    controls: true
-                });
-            });
-    </script>
+<body style="background: #000; margin: 0; padding: 0;">
+    <pyxel-player name="4792hose.pyxapp?v=HYBRID_FINAL_0324" gamepad="all" controls="true"></pyxel-player>
 </body>
 </html>

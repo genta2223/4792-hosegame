@@ -12,7 +12,7 @@ from ranch import Ranch
 def _web_save(slot_idx, data_str):
     try:
         import pyxel.dom as dom
-        key = f"4792_save_slot_{slot_idx}"
+        key = f"DUNAN_DASH_SAVE_{slot_idx}"
         dom.window.localStorage.setItem(key, data_str)
     except (ImportError, AttributeError):
         pass
@@ -20,7 +20,7 @@ def _web_save(slot_idx, data_str):
 def _web_load(slot_idx):
     try:
         import pyxel.dom as dom
-        key = f"4792_save_slot_{slot_idx}"
+        key = f"DUNAN_DASH_SAVE_{slot_idx}"
         return dom.window.localStorage.getItem(key)
     except (ImportError, AttributeError):
         return None

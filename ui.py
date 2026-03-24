@@ -7,7 +7,9 @@ from race import GOAL_DISTANCE
 
 # ---------- レイアウト定数 ----------
 SCREEN_W = 256
-SCREEN_H = 256
+GAME_H = 224
+PAD_H = 64
+SCREEN_H = GAME_H + PAD_H
 
 # 背景（上部エリア）
 BG_H = 75
@@ -561,7 +563,7 @@ def draw_title(frame, cursor, has_data=True):
 
 def draw_message_window(text, chars_shown, speaker="おじぃ"):
     win_h = 52
-    win_y = SCREEN_H - win_h - 2
+    win_y = GAME_H - win_h - 2
     win_x = 2
     win_w = SCREEN_W - 4
 
@@ -763,7 +765,7 @@ def draw_manual_naming_screen(frame, input_text, cursor_row, cursor_col, input_m
         pyxel.line(cx, 12, cx, 20, COL_WHITE)
 
     # キーボードウィンドウ
-    draw_window(4, 34, SCREEN_W - 8, SCREEN_H - 120, "文字選択")
+    draw_window(4, 34, SCREEN_W - 8, GAME_H - 120, "文字選択")
     
     # 文字グリッド
     if input_mode == 0: grid = HIRAGANA_GRID
@@ -835,7 +837,7 @@ def draw_vs_password_input_screen(frame, input_text, cursor_row, cursor_col, inp
         pyxel.line(cx, 12, cx, 20, COL_WHITE)
 
     # キーボードウィンドウ
-    draw_window(4, 34, SCREEN_W - 8, SCREEN_H - 120, "ふっかつのじゅもん選択")
+    draw_window(4, 34, SCREEN_W - 8, GAME_H - 120, "ふっかつのじゅもん選択")
     
     # 文字グリッド (HIRAGANA/KATAKANAのみ)
     if input_mode == 0: grid = HIRAGANA_GRID
@@ -878,11 +880,11 @@ def draw_vs_password_input_screen(frame, input_text, cursor_row, cursor_col, inp
         jp_text(bx + 2, by + 3, item, tcol)
 
     if error_msg:
-        jp_text(130, SCREEN_H - 72, error_msg, COL_RED)
+        jp_text(130, GAME_H - 72, error_msg, COL_RED)
 
     draw_ojii(194, 94, frame)
     hint = "↑↓←→:移動  Enter:入力/決定"
-    jp_text(10, SCREEN_H - 10, hint, COL_DKGRAY)
+    jp_text(10, GAME_H - 10, hint, COL_DKGRAY)
 
 
 def draw_vs_ready_screen(frame, vs_horses, cursor):
@@ -937,13 +939,14 @@ def draw_vs_ready_screen(frame, vs_horses, cursor):
             jp_text(20, iy, item, col)
 
     draw_ojii(200, 50, frame)
-    jp_text(4, SCREEN_H - 10, "↑↓:選択  Enter:決定", COL_DKGRAY)
+    jp_text(4, GAME_H - 10, "↑↓:選択  Enter:決定", COL_DKGRAY)
 
 
 def draw_tutorial_overlay(frame, tutorial_step, text, chars_shown):
     """Draw tutorial message over the main screen."""
-    # BG_Hは 160 (SCREEN_H - 64) 程度を想定
-    draw_ojii(SCREEN_W - 24, SCREEN_H - 64, frame)
+    jp_text(4, GAME_H - 10, "↑↓:選択  Enter:決定", COL_DKGRAY)
+    # BG_Hは 160 (GAME_H - 64) に調整
+    draw_ojii(SCREEN_W - 24, GAME_H - 64, frame)
     draw_message_window(text, chars_shown)
 
 # ====================================================================
@@ -1051,7 +1054,7 @@ def draw_race_result(engine):
     _player_colors = {1: COL_SUN, 2: COL_RED, 3: 12, 4: COL_LGRASS}
     win_w, win_h = 160, 110
     win_x = (SCREEN_W - win_w) // 2
-    win_y = (SCREEN_H - win_h) // 2
+    win_y = (GAME_H - win_h) // 2
     
     draw_window(win_x, win_y, win_w, win_h, "レース結果")
     
@@ -1148,7 +1151,7 @@ def draw_calendar_proceed_screen(frame, game, anim_frame, old_y, old_m, old_w, n
         cw, ch = 110, 64
 
     cx = (SCREEN_W - cw) // 2
-    cy = (SCREEN_H - ch) // 2
+    cy = (GAME_H - ch) // 2
 
     # Old card slides down and left slightly to simulate falling
     if anim_frame < 30:
@@ -1286,30 +1289,32 @@ def draw_reward_screen(frame, chars_shown, code):
         jp_text(SCREEN_W - 60, win_y + win_h - 12, "Enterで進む", COL_DKGRAY)
 
 def draw_virtual_controller():
-    """Draw mobile-friendly D-pad and A/B buttons at the bottom area."""
-    # コントローラー配置エリア (215px以降)
-    con_y = 215
-    # pyxel.rect(0, con_y, SCREEN_W, SCREEN_H - con_y, COL_BLACK)
-    # pyxel.line(0, con_y, SCREEN_W, con_y, COL_DKGRAY)
+    """ゲーム画面と完全に分離した暗闇エリア(y >= 224)にコントローラーを描画。"""
+    con_y = GAME_H
+    # 専用の暗闇エリア
+    pyxel.rect(0, con_y, SCREEN_W, PAD_H, COL_BLACK)
+    # 物理的分離線
+    pyxel.line(0, con_y, SCREEN_W, con_y, COL_DKGRAY)
 
-    # 十字キー (左側)
-    # 上(30, 222), 下(30, 246), 左(13, 234), 右(47, 234)
-    pyxel.rectb(24, 218, 12, 12, COL_GRAY) # U
-    pyxel.rectb(24, 242, 12, 12, COL_GRAY) # D
-    pyxel.rectb(7, 230, 12, 12, COL_GRAY)  # L
-    pyxel.rectb(41, 230, 12, 12, COL_GRAY) # R
+    # 十字キー (左側) - 暗闇エリアの中央付近(y=256)に配置
+    # 上(25, 230), 下(25, 260), 左(10, 245), 右(40, 245)
+    base_cy = con_y + 32
+    pyxel.rectb(24, base_cy - 20, 12, 12, COL_GRAY) # U
+    pyxel.rectb(24, base_cy + 8, 12, 12, COL_GRAY) # D
+    pyxel.rectb(8, base_cy - 6, 12, 12, COL_GRAY)  # L
+    pyxel.rectb(40, base_cy - 6, 12, 12, COL_GRAY) # R
     
-    jp_text(26, 220, "^", COL_WHITE)
-    jp_text(26, 244, "v", COL_WHITE)
-    jp_text(9, 232, "<", COL_WHITE)
-    jp_text(43, 232, ">", COL_WHITE)
+    jp_text(26, base_cy - 18, "^", COL_WHITE)
+    jp_text(26, base_cy + 10, "v", COL_WHITE)
+    jp_text(10, base_cy - 4, "<", COL_WHITE)
+    jp_text(42, base_cy - 4, ">", COL_WHITE)
 
     # A/B ボタン (右側)
-    # B(190, 235), A(230, 235)
-    pyxel.circb(195, 237, 12, COL_RED) # B
-    pyxel.circb(235, 237, 12, COL_SUN) # A
-    jp_text(192, 233, "B", COL_WHITE)
-    jp_text(232, 233, "A", COL_WHITE)
+    # B(195, base_cy), A(235, base_cy)
+    pyxel.circb(195, base_cy, 12, COL_RED) # B
+    pyxel.circb(235, base_cy, 12, COL_SUN) # A
+    jp_text(192, base_cy - 4, "B", COL_WHITE)
+    jp_text(232, base_cy - 4, "A", COL_WHITE)
 
     # 操作ガイド（中央）
-    jp_text(80, 233, "TOUCH PAD READY", COL_DKGRAY)
+    jp_text(85, base_cy - 4, "DUNAN PAD", COL_DKGRAY)

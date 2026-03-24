@@ -122,6 +122,7 @@ TUTORIAL_RACE_DIALOGUES = [
 
 class App:
     def __init__(self):
+        from ui import SCREEN_W, SCREEN_H # 256, 288
         pyxel.init(SCREEN_W, SCREEN_H, title="DUNAN DASH!", fps=30)
         pyxel.mouse(True)
         init_font()
@@ -1603,16 +1604,15 @@ class App:
         
         if not self._last_mouse_state:
             mx, my = pyxel.mouse_x, pyxel.mouse_y
-            # D-Pad (Left)
-            # U(24, 218), D(24, 242), L(7, 230), R(41, 230) - Width/Height 12
-            if 24<=mx<=36 and 218<=my<=230: self._virtual_btn_p = pyxel.KEY_UP
-            elif 24<=mx<=36 and 242<=my<=254: self._virtual_btn_p = pyxel.KEY_DOWN
-            elif 7<=mx<=19 and 230<=my<=242: self._virtual_btn_p = pyxel.KEY_LEFT
-            elif 41<=mx<=53 and 230<=my<=242: self._virtual_btn_p = pyxel.KEY_RIGHT
+            # D-Pad (Left) - y range is around 230-280
+            # Center cy = 256
+            if 24<=mx<=36 and 236<=my<=248: self._virtual_btn_p = pyxel.KEY_UP
+            elif 24<=mx<=36 and 264<=my<=276: self._virtual_btn_p = pyxel.KEY_DOWN
+            elif 8<=mx<=20 and 250<=my<=262: self._virtual_btn_p = pyxel.KEY_LEFT
+            elif 40<=mx<=52 and 250<=my<=262: self._virtual_btn_p = pyxel.KEY_RIGHT
             # A/B (Right)
-            # B(195, 237), A(235, 237) - Radius 12
-            elif (mx-235)**2 + (my-237)**2 <= 144: self._virtual_btn_p = pyxel.KEY_RETURN # A
-            elif (mx-195)**2 + (my-237)**2 <= 144: self._virtual_btn_p = pyxel.KEY_BACKSPACE # B
+            elif (mx-235)**2 + (my-256)**2 <= 144: self._virtual_btn_p = pyxel.KEY_RETURN # A
+            elif (mx-195)**2 + (my-256)**2 <= 144: self._virtual_btn_p = pyxel.KEY_BACKSPACE # B
         
         self._last_mouse_state = True
 

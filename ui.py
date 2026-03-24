@@ -383,29 +383,24 @@ def draw_main_screen(frame, game, left_title, left_items, cursor_idx, wide_menu=
         jp_text(info_x + 85, sy, f"残:{game.actions_left}", COL_LGRASS)
         sy += 12
         jp_text(info_x + 6, sy, f"所持金 {game.ranch.balance}G", COL_SUN)
-        if horse:
-            c_name, c_cnt = horse.get_class_info()
-            jp_text(info_x + 85, sy, f"[{c_name}]", COL_WHITE)
-            sy += 12
-            jp_text(info_x + 6, sy, c_cnt, COL_LGRASS)
-        sy += 12
+        sy += 16 # Spacing
 
         if horse:
+            # 1. 馬名、年齢、体重
             jp_text(info_x + 6, sy, horse.name, COL_WHITE)
             aw_text = f"{horse.age}才 {horse.weight}kg"
             aw_x = info_x + info_w - text_width(aw_text) - 4
             jp_text(aw_x, sy, aw_text, COL_GRAY)
             sy += 12
             
-            # 簡略化した情報（クラスと状態のみ）
-            c_name, _ = horse.get_class_info()
-            jp_text(info_x + 6, sy, f"クラス: {c_name}", COL_WHITE)
-            sy += 12
+            # 2. 体調
             jp_text(info_x + 6, sy, f"体調: {horse.fatigue_text()}", _cond_color(horse.fatigue))
             sy += 12
+            # 3. 気分
             jp_text(info_x + 6, sy, f"気分: {horse.condition_text()}", COL_WHITE)
             sy += 12
 
+            # 4. 目標レース
             if horse.target_race:
                 name = horse.target_race
                 if len(name) > 8: name = name[:7] + ".."
@@ -475,6 +470,11 @@ def draw_ranch_screen(frame, game, horse_list, selected_idx, advice_text):
         draw_parameter_gauge(det_x + 6, sy, "体力", horse.stamina, horse.caps.get("stamina", 220))
         sy += 10
         draw_parameter_gauge(det_x + 6, sy, "根性", horse.guts, horse.caps.get("guts", 220))
+        sy += 14
+        
+        # 昇級ヒント (移動先)
+        _, c_hint = horse.get_class_info()
+        jp_text(det_x + 6, sy, c_hint, COL_LGRASS)
     else:
         jp_text(det_x + 10, det_y + 35, "馬を選択してさぁ", COL_GRAY)
 

@@ -109,18 +109,18 @@ class Horse:
         """現在のクラス名と昇級までのカウントダウンを返す。"""
         # 未勝利 (ハナハナ級)
         if self.wins == 0:
-            return "未勝利", "あと1勝で一般へ"
+            return "未勝利", "あと1勝で[未勝利]から[一般]へ"
         
         # 一般 (どぅなん級) -> 3勝 or 5000G
         if self.wins < 3 and self.prize_money < 5000:
             w_rem = 3 - self.wins
             p_rem = 5000 - self.prize_money
-            return "一般", f"あと{w_rem}勝/賞金{p_rem}Gで重賞へ"
+            return "一般", f"あと{w_rem}勝/賞金{p_rem}Gで[一般]から[重賞]へ"
             
         # 重賞クラス (最西端級) -> 重賞1勝 or 5勝
         if self.stakes_wins < 1 and self.wins < 5:
             w_rem = 5 - self.wins
-            return "重賞クラス", f"重賞1勝 or あと{w_rem}勝でG1へ"
+            return "重賞クラス", f"重賞1勝 or あと{w_rem}勝で[G1]へ"
             
         # G1級 (サンセット記念級)
         return "G1級", "最高クラス到達さぁ！"

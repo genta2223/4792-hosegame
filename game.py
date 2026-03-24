@@ -31,6 +31,10 @@ class GameState:
 
     # ---------- ログ ----------
     def _add_log(self, message):
+        # 連続する重複メッセージは無視する (おじいのアドバイス重複対策)
+        if self.log and self.log[-1] == message:
+            return
+
         self.log.append(message)
         if len(self.log) > self.MAX_LOG:
             self.log = self.log[-self.MAX_LOG:]

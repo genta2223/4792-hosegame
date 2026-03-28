@@ -1646,15 +1646,14 @@ class App:
         
         if not self._last_mouse_state:
             mx, my = pyxel.mouse_x, pyxel.mouse_y
-            # D-Pad (Left) - y range is around 230-280
-            # Center cy = 256
-            if 24<=mx<=36 and 236<=my<=248: self._virtual_btn_p = pyxel.KEY_UP
-            elif 24<=mx<=36 and 264<=my<=276: self._virtual_btn_p = pyxel.KEY_DOWN
-            elif 8<=mx<=20 and 250<=my<=262: self._virtual_btn_p = pyxel.KEY_LEFT
-            elif 40<=mx<=52 and 250<=my<=262: self._virtual_btn_p = pyxel.KEY_RIGHT
-            # A/B (Right)
-            elif (mx-235)**2 + (my-256)**2 <= 144: self._virtual_btn_p = pyxel.KEY_RETURN # A
-            elif (mx-195)**2 + (my-256)**2 <= 144: self._virtual_btn_p = pyxel.KEY_BACKSPACE # B
+            # D-Pad (Left) - Size doubled
+            if 18<=mx<=42 and 228<=my<=252: self._virtual_btn_p = pyxel.KEY_UP
+            elif 18<=mx<=42 and 260<=my<=284: self._virtual_btn_p = pyxel.KEY_DOWN
+            elif 2<=mx<=26 and 244<=my<=268: self._virtual_btn_p = pyxel.KEY_LEFT
+            elif 34<=mx<=58 and 244<=my<=268: self._virtual_btn_p = pyxel.KEY_RIGHT
+            # A/B (Right) - Size doubled
+            elif (mx-235)**2 + (my-256)**2 <= 484: self._virtual_btn_p = pyxel.KEY_RETURN # A
+            elif (mx-185)**2 + (my-256)**2 <= 484: self._virtual_btn_p = pyxel.KEY_BACKSPACE # B
         
         self._last_mouse_state = True
 

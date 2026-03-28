@@ -1307,25 +1307,26 @@ def draw_virtual_controller():
     # 十字キー (左側) - 暗闇エリアの中央付近(y=256)に配置
     # 上(25, 230), 下(25, 260), 左(10, 245), 右(40, 245)
     base_cy = con_y + 32
-    pyxel.rectb(24, base_cy - 20, 12, 12, COL_GRAY) # U
-    pyxel.rectb(24, base_cy + 8, 12, 12, COL_GRAY) # D
-    pyxel.rectb(8, base_cy - 6, 12, 12, COL_GRAY)  # L
-    pyxel.rectb(40, base_cy - 6, 12, 12, COL_GRAY) # R
+    # 巨大化 DUNAN PAD V2
+    pyxel.rectb(18, base_cy - 28, 24, 24, COL_GRAY) # U
+    pyxel.rectb(18, base_cy + 4, 24, 24, COL_GRAY) # D
+    pyxel.rectb(2, base_cy - 12, 24, 24, COL_GRAY)  # L
+    pyxel.rectb(34, base_cy - 12, 24, 24, COL_GRAY) # R
     
-    jp_text(26, base_cy - 18, "^", COL_WHITE)
-    jp_text(26, base_cy + 10, "v", COL_WHITE)
-    jp_text(10, base_cy - 4, "<", COL_WHITE)
-    jp_text(42, base_cy - 4, ">", COL_WHITE)
+    jp_text(28, base_cy - 20, "^", COL_WHITE)
+    jp_text(28, base_cy + 12, "v", COL_WHITE)
+    jp_text(12, base_cy - 4, "<", COL_WHITE)
+    jp_text(44, base_cy - 4, ">", COL_WHITE)
 
-    # A/B ボタン (右側)
-    # B(195, base_cy), A(235, base_cy)
-    pyxel.circb(195, base_cy, 12, COL_RED) # B
-    pyxel.circb(235, base_cy, 12, COL_SUN) # A
-    jp_text(192, base_cy - 4, "B", COL_WHITE)
+    # A/B ボタン (右側) - 倍率アップ
+    # B(185, base_cy), A(235, base_cy)
+    pyxel.circb(185, base_cy, 22, COL_RED) # B
+    pyxel.circb(235, base_cy, 22, COL_SUN) # A
+    jp_text(182, base_cy - 4, "B", COL_WHITE)
     jp_text(232, base_cy - 4, "A", COL_WHITE)
 
     # 操作ガイド（中央）
-    jp_text(85, base_cy - 4, "DUNAN PAD", COL_DKGRAY)
+    jp_text(85, base_cy - 4, "DUNAN PAD V2", COL_DKGRAY)
 
 
 def draw_confirm_exit_dialog(frame, cursor):

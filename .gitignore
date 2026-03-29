@@ -1,0 +1,8 @@
+*.pyxapp
+!docs/dunan.pyxapp
+temp_extract/
+temp.zip
+build_temp/
+__pycache__/
+*.pyc
+.DS_Store

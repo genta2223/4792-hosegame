@@ -874,7 +874,7 @@ class App:
 
     def _update_password_input(self):
         self._handle_password_typing()
-        if pyxel.btnp(pyxel.KEY_RETURN) and self.password_input:
+        if self._get_btnp(pyxel.KEY_RETURN) and self.password_input:
             play_se(SE_CONFIRM)
             success, result = load_from_password(self.password_input)
             if success:
@@ -886,18 +886,18 @@ class App:
                 self.game._add_log("牧場データをロードしました！")
             else:
                 self.password_error = result
-        if pyxel.btnp(pyxel.KEY_ESCAPE):
+        if self._get_btnp(pyxel.KEY_ESCAPE):
             play_se(SE_CANCEL)
             self.state = STATE_TITLE
 
     def _update_password_show(self):
-        if pyxel.btnp(pyxel.KEY_RETURN) or pyxel.btnp(pyxel.KEY_ESCAPE):
+        if self._get_btnp(pyxel.KEY_RETURN) or self._get_btnp(pyxel.KEY_ESCAPE):
             play_se(SE_CONFIRM)
             self.state = STATE_PLAY
 
     def _update_reward(self):
         self._advance_typewriter()
-        if pyxel.btnp(pyxel.KEY_RETURN):
+        if self._get_btnp(pyxel.KEY_RETURN):
             if self._is_text_complete():
                 play_se(SE_CONFIRM)
                 self.state = STATE_PLAY
@@ -1009,7 +1009,7 @@ class App:
             self.fanfare_played = True
 
     def _update_vs_result(self):
-        if pyxel.btnp(pyxel.KEY_RETURN):
+        if self._get_btnp(pyxel.KEY_RETURN):
             play_se(SE_CONFIRM)
             self.vs_horses = []
             self.state = STATE_TITLE
@@ -1160,18 +1160,18 @@ class App:
         
         if not items: return
 
-        if pyxel.btnp(pyxel.KEY_UP):
+        if self._get_btnp(pyxel.KEY_UP):
             play_se(SE_CURSOR)
             self.sub_cursor = (self.sub_cursor - 1) % len(items)
-        if pyxel.btnp(pyxel.KEY_DOWN):
+        if self._get_btnp(pyxel.KEY_DOWN):
             play_se(SE_CURSOR)
             self.sub_cursor = (self.sub_cursor + 1) % len(items)
             
-        if pyxel.btnp(pyxel.KEY_RETURN):
+        if self._get_btnp(pyxel.KEY_RETURN):
             sel = items[self.sub_cursor]
             self._handle_rest_select(sel)
             
-        if pyxel.btnp(pyxel.KEY_BACKSPACE) or pyxel.btnp(pyxel.KEY_ESCAPE):
+        if self._get_btnp(pyxel.KEY_BACKSPACE) or self._get_btnp(pyxel.KEY_ESCAPE):
             play_se(SE_CANCEL)
             self.state = STATE_PLAY
             self.sub_menu = None
@@ -1191,24 +1191,24 @@ class App:
         
         if not items: return
 
-        if pyxel.btnp(pyxel.KEY_UP):
+        if self._get_btnp(pyxel.KEY_UP):
             play_se(SE_CURSOR)
             cursor = (cursor - 1) % len(items)
             if self.sub_menu is None: self.menu_cursor = cursor
             else: self.sub_cursor = cursor
             
-        if pyxel.btnp(pyxel.KEY_DOWN):
+        if self._get_btnp(pyxel.KEY_DOWN):
             play_se(SE_CURSOR)
             cursor = (cursor + 1) % len(items)
             if self.sub_menu is None: self.menu_cursor = cursor
             else: self.sub_cursor = cursor
             
-        if pyxel.btnp(pyxel.KEY_RETURN):
+        if self._get_btnp(pyxel.KEY_RETURN):
             play_se(SE_CONFIRM)
             sel = items[cursor]
             self._handle_menu_select(sel, cursor)
             
-        if pyxel.btnp(pyxel.KEY_BACKSPACE):
+        if self._get_btnp(pyxel.KEY_BACKSPACE):
             play_se(SE_CANCEL)
             if self.sub_menu == "train_int":
                 self.sub_menu = "train_loc"

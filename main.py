@@ -245,9 +245,8 @@ class App:
         self.frame += 1
         self._update_virtual_pad()
 
-        # デバッグ: F12でデバッグモード切り替え
-        if pyxel.btnp(pyxel.KEY_F12):
-            self.debug_mode = not self.debug_mode
+        # デバッグ: F12は本番でブラウザDevToolsと競合するため無効化
+        # debug_mode は起動引数 --debug で有効化する
 
         # AIデバッグ: F11で状態をJSONダンプ
         if pyxel.btnp(pyxel.KEY_F11) or "--ai-debug" in sys.argv:
@@ -1733,7 +1732,7 @@ class App:
             "state": self.state,
             "state_name": STATE_NAMES.get(self.state, "UNKNOWN"),
             "tutorial_step": self.tutorial_step,
-            "money": self.game.money,
+            "balance": self.game.ranch.balance,
             "actions_left": self.game.actions_left,
             "horse": {
                 "name": h.name if h else "None",
@@ -1759,9 +1758,9 @@ class App:
             self.tutorial_step = 8 # 休養デモ
             self._reset_typewriter()
             print("WARP: TUTORIAL_REST")
-        # F12: 状態ダンプ
-        if self._get_btnp(pyxel.KEY_F12):
-            self._dump_state()
+        # F12: 本番でブラウザDevToolsと競合するため無効化
+        # if self._get_btnp(pyxel.KEY_F12):
+        #     self._dump_state()
 
         # F1: デバッグパネル表示切替
         if self._get_btnp(pyxel.KEY_F1):
